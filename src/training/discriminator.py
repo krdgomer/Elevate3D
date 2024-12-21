@@ -14,10 +14,10 @@ class CNNBlock(nn.Module):
         return self.conv(x)
 
 class Discriminator(nn.Module):
-    def __init__(self, in_channels=3,features=[64,128,256,512]):
+    def __init__(self, in_channels=2,features=[64,128,256,512]):
         super().__init__()
         self.initial= nn.Sequential(
-            nn.Conv2d(3+1,features[0],kernel_size=4,stride=2,padding=1,padding_mode="reflect"),
+            nn.Conv2d(in_channels,features[0],kernel_size=4,stride=2,padding=1,padding_mode="reflect"),
             nn.LeakyReLU(0.2),
         )
 
@@ -44,7 +44,7 @@ class Discriminator(nn.Module):
         return self.model(x)
 
 def test():
-    x=torch.randn((1,3,256,256))
+    x=torch.randn((1,1,256,256))
     y=torch.randn((1,1,256,256))
     model = Discriminator()
     preds = model(x,y)
