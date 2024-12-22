@@ -2,13 +2,14 @@ import torch
 from src.utils.utils import save_checkpoint, load_checkpoint, save_some_examples
 import torch.nn as nn
 import torch.optim as optim
-from dataset import MapDataset
-from generator import Generator
-from discriminator import Discriminator
+from .dataset import MapDataset
+from .generator import Generator
+from .discriminator import Discriminator
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from torchvision.utils import save_image
 from configs import train_config as config
+
 
 torch.backends.cudnn.benchmark = True
 
@@ -55,9 +56,9 @@ def train_fn(
             )
 
 
-def train():
-    disc = Discriminator(in_channels=4).to(config.DEVICE)
-    gen = Generator(in_channels=3, features=64).to(config.DEVICE)
+def main():
+    disc = Discriminator(in_channels=1).to(config.DEVICE)
+    gen = Generator(in_channels=1, features=64).to(config.DEVICE)
     opt_disc = optim.Adam(disc.parameters(), lr=config.LEARNING_RATE, betas=(0.5, 0.999),)
     opt_gen = optim.Adam(gen.parameters(), lr=config.LEARNING_RATE, betas=(0.5, 0.999))
     BCE = nn.BCEWithLogitsLoss()
@@ -93,6 +94,5 @@ def train():
             save_checkpoint(disc, opt_disc, filename=config.CHECKPOINT_DISC)
 
         save_some_examples(gen, val_loader, epoch, folder="src/training/generated")
-
 
 
