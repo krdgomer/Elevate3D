@@ -1,7 +1,7 @@
 import numpy as np
-from configs import train_config as config
+from src.configs import train_config as config
 import os
-from PIL import Image, ImageOps
+from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 from torchvision.utils import save_image
 import cv2
@@ -32,7 +32,6 @@ class MapDataset(Dataset):
         # Apply histogram equalization if enabled
         if self.apply_histogram_eq:
             input_image = cv2.equalizeHist(input_image)
-            target_image = cv2.equalizeHist(target_image)
 
         # Apply augmentations
         augmentations = config.both_transform(image=input_image, image0=target_image)
