@@ -1,2 +1,6 @@
 src/datasets
 data
+src/training/train
+src/training/val
+src/training/generated
+elevate3d.egg-info
