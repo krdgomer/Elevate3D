@@ -4,3 +4,5 @@ src/training/train
 src/training/val
 src/training/generated
 elevate3d.egg-info
+__pycache__
+.idea
