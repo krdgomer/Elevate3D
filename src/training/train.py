@@ -2,14 +2,12 @@ import torch
 from src.utils.utils import save_checkpoint, load_checkpoint, save_some_examples
 import torch.nn as nn
 import torch.optim as optim
-from .dataset import MapDataset
-from .generator import Generator
-from .discriminator import Discriminator
+from dataset import MapDataset
+from generator import Generator
+from discriminator import Discriminator
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from torchvision.utils import save_image
-from configs import train_config as config
-
+from src.configs import train_config as config
 
 torch.backends.cudnn.benchmark = True
 
@@ -94,5 +92,4 @@ def main():
             save_checkpoint(disc, opt_disc, filename=config.CHECKPOINT_DISC)
 
         save_some_examples(gen, val_loader, epoch, folder="src/training/generated")
-
 

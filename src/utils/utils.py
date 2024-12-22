@@ -1,6 +1,8 @@
 import torch
 from torchvision.utils import save_image
-from configs import train_config as config
+from src.configs import train_config as config
+
+
 def save_some_examples(gen, val_loader, epoch, folder):
     x, y = next(iter(val_loader))
     x, y = x.to(config.DEVICE), y.to(config.DEVICE)
