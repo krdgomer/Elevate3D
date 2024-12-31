@@ -3,3 +3,4 @@ tqdm
 torchvision
 numpy
 pillow
+rasterio
