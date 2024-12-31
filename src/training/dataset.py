@@ -1,56 +1,96 @@
-import numpy as np
-from src.configs import train_config as config
 import os
-from PIL import Image
-from torch.utils.data import Dataset, DataLoader
-from torchvision.utils import save_image
-import cv2
+import random
+import numpy as np
+import rasterio
+from torch.utils.data import Dataset
+import torch
+from src.configs import train_config as config
 
 
-class MapDataset(Dataset):
-    def __init__(self, root_dir, apply_histogram_eq=False):
+class TifDataset(Dataset):
+    def __init__(self, root_dir, patch_size=512):
         self.root_dir = root_dir
-        self.list_files = os.listdir(self.root_dir)
-        self.apply_histogram_eq = apply_histogram_eq
+        self.patch_size = patch_size
+
+        # Tüm TIF dosyalarını bul
+        all_files = os.listdir(root_dir)
+
+        # DSM dosyalarını bul (tüm şehirler için)
+        self.dsm_files = [f for f in all_files if 'DSM.tif' in f]
+
+        # Her DSM dosyası için prefix ve tile numarasını ayır
+        self.file_info = []
+        for dsm_file in self.dsm_files:
+            # Dosya adını parçalara ayır
+            parts = dsm_file.split('_')
+            prefix = parts[0]  # JAX, RIC veya TAM
+            tile_num = parts[2]  # Tile numarası
+
+            # RGB dosyasının varlığını kontrol et
+            rgb_file = f"{prefix}_Tile_{tile_num}_RGB.tif"
+            if rgb_file in all_files:
+                self.file_info.append({
+                    'prefix': prefix,
+                    'tile_num': tile_num,
+                    'dsm_file': dsm_file,
+                    'rgb_file': rgb_file
+                })
 
     def __len__(self):
-        return len(self.list_files)
+        return len(self.file_info) * (2048 // self.patch_size) ** 2
 
     def __getitem__(self, index):
-        img_file = self.list_files[index]
-        img_path = os.path.join(self.root_dir, img_file)
-        image = np.array(Image.open(img_path))
+        # Hangi görüntü ve hangi patch
+        img_idx = index // ((2048 // self.patch_size) ** 2)
+        patch_idx = index % ((2048 // self.patch_size) ** 2)
 
-        # Split into input and target images
-        input_image = image[:, :512, :]
-        target_image = image[:, 512:, :]
+        # Dosya bilgilerini al
+        file_info = self.file_info[img_idx]
 
-        # Convert both images to grayscale
-        input_image = np.array(Image.fromarray(input_image).convert("L"))
-        target_image = np.array(Image.fromarray(target_image).convert("L"))
+        # Dosya yollarını oluştur
+        rgb_path = os.path.join(self.root_dir, file_info['rgb_file'])
+        dsm_path = os.path.join(self.root_dir, file_info['dsm_file'])
 
-        # Apply histogram equalization if enabled
-        if self.apply_histogram_eq:
-            input_image = cv2.equalizeHist(input_image)
+        # Patch pozisyonunu hesapla
+        row = (patch_idx // (2048 // self.patch_size)) * self.patch_size
+        col = (patch_idx % (2048 // self.patch_size)) * self.patch_size
 
-        # Apply augmentations
-        augmentations = config.both_transform(image=input_image, image0=target_image)
-        input_image = augmentations["image"]
-        target_image = augmentations["image0"]
+        try:
+            # RGB görüntüsünü oku
+            with rasterio.open(rgb_path) as src:
+                rgb = src.read(
+                    window=((row, row + self.patch_size),
+                            (col, col + self.patch_size))
+                )
 
-        input_image = config.transform_only_input(image=input_image)["image"]
-        target_image = config.transform_only_mask(image=target_image)["image"]
+            grayscale = 0.2989 * rgb[0] + 0.5870 * rgb[1] + 0.1140 * rgb[2]
+            grayscale = grayscale.astype(np.float32)
 
-        return input_image, target_image
+            # DSM görüntüsünü oku
+            with rasterio.open(dsm_path) as src:
+                dsm = src.read(
+                    1,  # İlk band
+                    window=((row, row + self.patch_size),
+                            (col, col + self.patch_size))
+                )
 
+            # Normalizasyon
+            grayscale = grayscale / 255.0
+            dsm = dsm.astype(np.float32)
 
-if __name__ == "__main__":
-    dataset = MapDataset("data/train/", apply_histogram_eq=True)
-    loader = DataLoader(dataset, batch_size=5)
-    for x, y in loader:
-        print(x.shape)
-        save_image(x, "x.png")
-        save_image(y, "y.png")
-        import sys
+            # Augmentation uygula
+            augmentations = config.both_transform(image=grayscale, image0=dsm)
+            grayscale = augmentations["image"]
+            dsm = augmentations["image0"]
 
-        sys.exit()
+            grayscale = config.transform_only_input(image=grayscale)["image"]
+            dsm = config.transform_only_mask(image=dsm)["image"]
+
+            return grayscale, dsm
+
+        except Exception as e:
+            print(f"Error loading files: {rgb_path} or {dsm_path}")
+            print(f"Error message: {str(e)}")
+            # Hata durumunda başka bir görüntü dene
+            return self.__getitem__(random.randint(0, len(self) - 1))
+

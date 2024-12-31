@@ -2,9 +2,9 @@ import torch
 from src.utils.utils import save_checkpoint, load_checkpoint, save_some_examples
 import torch.nn as nn
 import torch.optim as optim
-from dataset import MapDataset
-from generator import Generator
-from discriminator import Discriminator
+from src.training.dataset import TifDataset
+from src.training.generator import Generator
+from src.training.discriminator import Discriminator
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from src.configs import train_config as config
@@ -70,7 +70,7 @@ def main():
             config.CHECKPOINT_DISC, disc, opt_disc, config.LEARNING_RATE,
         )
 
-    train_dataset = MapDataset(root_dir=config.TRAIN_DIR)
+    train_dataset = TifDataset(root_dir=config.TRAIN_DIR)
     train_loader = DataLoader(
         train_dataset,
         batch_size=config.BATCH_SIZE,
@@ -79,7 +79,7 @@ def main():
     )
     g_scaler = torch.cuda.amp.GradScaler()
     d_scaler = torch.cuda.amp.GradScaler()
-    val_dataset = MapDataset(root_dir=config.VAL_DIR)
+    val_dataset = TifDataset(root_dir=config.VAL_DIR)
     val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False)
 
     for epoch in range(config.NUM_EPOCHS):
