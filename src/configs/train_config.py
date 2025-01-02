@@ -3,12 +3,12 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-TRAIN_DIR = "src/training/train"
-VAL_DIR = "src/training/val"
+TRAIN_DIR = "src/datasets/rgb_dsm_train"
+VAL_DIR = "src/datasets/rgb_dsm_val"
 LEARNING_RATE = 2e-4
 BATCH_SIZE = 16
 NUM_WORKERS = 2
-IMAGE_SIZE = 512
+IMAGE_SIZE = 256
 CHANNELS_IMG = 3
 L1_LAMBDA = 100
 LAMBDA_GP = 10

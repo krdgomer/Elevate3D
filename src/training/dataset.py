@@ -10,24 +10,25 @@ import cv2
 class MapDataset(Dataset):
     def __init__(self, root_dir, apply_histogram_eq=False):
         self.root_dir = root_dir
-        self.list_files = os.listdir(self.root_dir)
+        self.rgb_dir = os.path.join(root_dir, "rgb")
+        self.dsm_dir = os.path.join(root_dir, "dsm")
+        self.image_names = [f for f in os.listdir(self.rgb_dir) if f.endswith('.png')]
         self.apply_histogram_eq = apply_histogram_eq
 
     def __len__(self):
-        return len(self.list_files)
+        return len(self.image_names)
 
     def __getitem__(self, index):
-        img_file = self.list_files[index]
-        img_path = os.path.join(self.root_dir, img_file)
-        image = np.array(Image.open(img_path))
+        img_name = self.image_names[index]
+        
+        rgb_path = os.path.join(self.rgb_dir, img_name)
+        dsm_path = os.path.join(self.dsm_dir, img_name)
 
-        # Split into input and target images
-        input_image = image[:, :512, :]
-        target_image = image[:, 512:, :]
-
-        # Convert both images to grayscale
+        input_image = np.array(Image.open(rgb_path))
+        target_image = np.array(Image.open(dsm_path))
+        
         input_image = np.array(Image.fromarray(input_image).convert("L"))
-        target_image = np.array(Image.fromarray(target_image).convert("L"))
+        target_image = np.array(Image.fromarray(input_image).convert("L"))
 
         # Apply histogram equalization if enabled
         if self.apply_histogram_eq:
