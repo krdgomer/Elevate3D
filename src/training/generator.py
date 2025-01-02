@@ -90,7 +90,7 @@ class Generator(nn.Module):
 
 
 def test():
-    x = torch.randn((1, 1, 512, 512))
+    x = torch.randn((1, 1, 256, 256))
     model = Generator(in_channels=1, features=64)
     preds = model(x)
     print(preds.shape)
