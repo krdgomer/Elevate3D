@@ -92,4 +92,3 @@ def main():
             save_checkpoint(disc, opt_disc, filename=config.CHECKPOINT_DISC)
 
         save_some_examples(gen, val_loader, epoch, folder="/content/drive/MyDrive/ProjeDosyalari/rgb_dsm_generated/")
-

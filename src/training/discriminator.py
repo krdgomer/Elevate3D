@@ -44,8 +44,8 @@ class Discriminator(nn.Module):
         return self.model(x)
 
 def test():
-    x=torch.randn((1,1,256,256))
-    y=torch.randn((1,1,256,256))
+    x=torch.randn((1,1,512,512))
+    y=torch.randn((1,1,512,512))
     model = Discriminator()
     preds = model(x,y)
     print(preds.shape)
