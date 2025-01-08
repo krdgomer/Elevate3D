@@ -98,7 +98,7 @@ def main():
     gen_losses = []
     for epoch in range(config.NUM_EPOCHS):
         print(f"Epoch {epoch+1}/{config.NUM_EPOCHS}")
-        train_fn(
+        avg_disc_loss, avg_gen_loss = train_fn(
             disc, gen, train_loader, opt_disc, opt_gen, L1_LOSS, BCE, g_scaler, d_scaler,
         )
         print(f"Discriminator Loss: {avg_disc_loss:.4f}, Generator Loss: {avg_gen_loss:.4f}")
