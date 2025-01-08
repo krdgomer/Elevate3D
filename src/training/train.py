@@ -8,6 +8,7 @@ from src.training.discriminator import Discriminator
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from src.configs import train_config as config
+import matplotlib.pyplot as plt
 
 torch.backends.cudnn.benchmark = True
 
@@ -16,6 +17,8 @@ def train_fn(
     disc, gen, loader, opt_disc, opt_gen, l1_loss, bce, g_scaler, d_scaler,
 ):
     loop = tqdm(loader, leave=True)
+    total_disc_loss = 0  # To store discriminator loss for the epoch
+    total_gen_loss = 0   # To store generator loss for the epoch
 
     for idx, (x, y) in enumerate(loop):
         x = x.to(config.DEVICE)
@@ -47,11 +50,19 @@ def train_fn(
         g_scaler.step(opt_gen)
         g_scaler.update()
 
+        # Accumulate losses
+        total_disc_loss += D_loss.item()
+        total_gen_loss += G_loss.item()
+
         if idx % 10 == 0:
             loop.set_postfix(
                 D_real=torch.sigmoid(D_real).mean().item(),
                 D_fake=torch.sigmoid(D_fake).mean().item(),
             )
+    # Calculate and return average losses for the epoch
+    avg_disc_loss = total_disc_loss / len(loader)
+    avg_gen_loss = total_gen_loss / len(loader)
+    return avg_disc_loss, avg_gen_loss
 
 
 def main():
@@ -82,13 +93,31 @@ def main():
     val_dataset = MapDataset(root_dir=config.VAL_DIR)
     val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False)
 
+
+    disc_losses = []
+    gen_losses = []
     for epoch in range(config.NUM_EPOCHS):
+        print(f"Epoch {epoch+1}/{config.NUM_EPOCHS}")
         train_fn(
             disc, gen, train_loader, opt_disc, opt_gen, L1_LOSS, BCE, g_scaler, d_scaler,
         )
+        print(f"Discriminator Loss: {avg_disc_loss:.4f}, Generator Loss: {avg_gen_loss:.4f}")
 
+        # Append losses to lists
+        disc_losses.append(avg_disc_loss)
+        gen_losses.append(avg_gen_loss)
         if config.SAVE_MODEL and epoch % 5 == 0:
             save_checkpoint(gen, opt_gen, filename=config.CHECKPOINT_GEN)
             save_checkpoint(disc, opt_disc, filename=config.CHECKPOINT_DISC)
 
         save_some_examples(gen, val_loader, epoch, folder="/content/drive/MyDrive/ProjeDosyalari/rgb_dsm_generated/")
+    
+    
+
+    plt.plot(disc_losses, label="Discriminator Loss")
+    plt.plot(gen_losses, label="Generator Loss")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.legend()
+    plt.title("Loss During Training")
+    plt.show()

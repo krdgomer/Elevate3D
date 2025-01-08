@@ -14,7 +14,7 @@ L1_LAMBDA = 100
 LAMBDA_GP = 10
 NUM_EPOCHS = 200
 LOAD_MODEL = False
-SAVE_MODEL = False
+SAVE_MODEL = True
 CHECKPOINT_DISC = "disc.pth.tar"
 CHECKPOINT_GEN = "gen.pth.tar"
 
