@@ -5,9 +5,14 @@ from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 from torchvision.utils import save_image
 import cv2
+from src.utils.utils import both_transform, transform_only_input, transform_only_mask
 
 
 class MapDataset(Dataset):
+    """
+    Dataset class for loading map images.
+    """
+
     def __init__(self, root_dir, apply_histogram_eq=False):
         self.root_dir = root_dir
         self.list_files = os.listdir(self.root_dir)
@@ -43,14 +48,3 @@ class MapDataset(Dataset):
 
         return input_image, target_image
 
-
-if __name__ == "__main__":
-    dataset = MapDataset("data/train/", apply_histogram_eq=True)
-    loader = DataLoader(dataset, batch_size=5)
-    for x, y in loader:
-        print(x.shape)
-        save_image(x, "x.png")
-        save_image(y, "y.png")
-        import sys
-
-        sys.exit()

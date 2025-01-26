@@ -9,9 +9,18 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from src.configs import train_config as config
 import matplotlib.pyplot as plt
+import argparse
 
 torch.backends.cudnn.benchmark = True
 
+# Argument parser
+parser = argparse.ArgumentParser(description="Training Configuration")
+parser.add_argument("--train_dir", type=str, required=True, help="Path to the training dataset directory")
+parser.add_argument("--val_dir", type=str, required=True, help="Path to the validation dataset directory")
+args = parser.parse_args()
+
+TRAIN_DIR = args.train_dir
+VAL_DIR = args.val_dir
 
 def train_fn(
     disc, gen, loader, opt_disc, opt_gen, l1_loss, bce, g_scaler, d_scaler,
@@ -29,7 +38,7 @@ def train_fn(
             x = x.to(config.DEVICE)
             y = y.to(config.DEVICE)
 
-            # Train Discriminator
+            # Train Discriminator. Computes real (D_real) and fake (D_fake) losses using Binary Cross-Entropy (BCE).
             with torch.cuda.amp.autocast():
                 y_fake = gen(x)
                 D_real = disc(x, y)
@@ -38,6 +47,7 @@ def train_fn(
                 D_fake_loss = bce(D_fake, torch.zeros_like(D_fake))
                 D_loss = (D_real_loss + D_fake_loss) / 2
 
+            # Updates the discriminator weights to better distinguish between real and fake samples.
             disc.zero_grad()
             d_scaler.scale(D_loss).backward()
             d_scaler.step(opt_disc)
@@ -50,6 +60,7 @@ def train_fn(
                 L1 = l1_loss(y_fake, y) * config.L1_LAMBDA
                 G_loss = G_fake_loss + L1
 
+            # Updates the generator weights to minimize the loss between the generated image and the target image.
             opt_gen.zero_grad()
             g_scaler.scale(G_loss).backward()
             g_scaler.step(opt_gen)
@@ -80,7 +91,7 @@ def train_fn(
     return avg_disc_loss, avg_gen_loss
 
 
-def main():
+if __name__ == "__main__":
     disc = Discriminator(in_channels=1).to(config.DEVICE)
     gen = Generator(in_channels=1, features=64).to(config.DEVICE)
     opt_disc = optim.Adam(disc.parameters(), lr=config.LEARNING_RATE, betas=(0.5, 0.999),)
@@ -88,6 +99,7 @@ def main():
     BCE = nn.BCEWithLogitsLoss()
     L1_LOSS = nn.L1Loss()
 
+    # Loads pre-trained model weights if LOAD_MODEL is True.
     if config.LOAD_MODEL:
         load_checkpoint(
             config.CHECKPOINT_GEN, gen, opt_gen, config.LEARNING_RATE,
