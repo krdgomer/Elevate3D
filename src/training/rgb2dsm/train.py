@@ -2,9 +2,9 @@ import torch
 from src.utils.utils import save_checkpoint, load_checkpoint, save_some_examples
 import torch.nn as nn
 import torch.optim as optim
-from src.training.dataset import MapDataset
-from src.training.generator import Generator
-from src.training.discriminator import Discriminator
+from src.training.rgb2dsm.dataset import MapDataset
+from src.training.rgb2dsm.generator import Generator
+from src.training.rgb2dsm.discriminator import Discriminator
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from src.configs import train_config as config
