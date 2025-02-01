@@ -1,9 +1,10 @@
 import torch
 from torchvision.utils import save_image
-from src.configs import train_config as config
+from src.configs import rgb2dsm_config as config
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
-
+import numpy as np
+import cv2
 
 def save_some_examples(gen, val_loader, epoch, folder):
     x, y = next(iter(val_loader))
@@ -63,3 +64,11 @@ def get_transform_only_mask():
         ]
     )
 
+def normalize_image(img):
+    """Normalize an image to the range [0, 1]."""
+    return (img - np.min(img)) / (np.max(img) - np.min(img))
+    
+def save_image(image, filename):
+    """Save an image as an 8-bit grayscale PNG."""
+    image_scaled = (normalize_image(image) * 255).astype(np.uint8)
+    cv2.imwrite(filename, image_scaled)
