@@ -2,8 +2,8 @@ from PIL import Image
 import os
 
 # Folder paths
-input_folder = 'data/raw/dsm'  # Path where the original images are stored
-output_folder = 'data/processed/rgb_dsm'  # Path where the split tiles will be saved
+input_folder = 'data/raw/dtm'  # Path where the original images are stored
+output_folder = 'data/processed/dsm_dtm'  # Path where the split tiles will be saved
 
 # Create the output folder if it doesn't exist
 if not os.path.exists(output_folder):
@@ -11,7 +11,7 @@ if not os.path.exists(output_folder):
 
 # List all files in the input folder
 for filename in os.listdir(input_folder):
-    if filename.startswith('dsm_') and filename.endswith('.png'):
+    if filename.startswith('dtm_') and filename.endswith('.png'):
         # Open the image
         img_path = os.path.join(input_folder, filename)
         img = Image.open(img_path)
@@ -34,7 +34,7 @@ for filename in os.listdir(input_folder):
                     tile = img.crop((left, upper, right, lower))
                     
                     # Create the new filename
-                    new_filename = f"dsm_{filename[4:-4]}_{i * 4 + j + 1}.png"
+                    new_filename = f"dtm_{filename[4:-4]}_{i * 4 + j + 1}.png"
                     new_file_path = os.path.join(output_folder, new_filename)
                     
                     # Save the cropped tile
