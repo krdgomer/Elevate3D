@@ -1,5 +1,5 @@
 import numpy as np
-from src.configs import train_config as config
+from src.configs import rgb2dsm_config as config
 import os
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader

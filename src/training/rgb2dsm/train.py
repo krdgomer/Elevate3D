@@ -7,7 +7,7 @@ from src.training.rgb2dsm.generator import Generator
 from src.training.rgb2dsm.discriminator import Discriminator
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from src.configs import train_config as config
+from src.configs import rgb2dsm_config as config
 import matplotlib.pyplot as plt
 import argparse
 
