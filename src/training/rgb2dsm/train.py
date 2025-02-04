@@ -108,7 +108,7 @@ if __name__ == "__main__":
             config.CHECKPOINT_DISC, disc, opt_disc, config.LEARNING_RATE,
         )
 
-    train_dataset = MapDataset(root_dir=config.TRAIN_DIR)
+    train_dataset = MapDataset(root_dir=TRAIN_DIR)
     train_loader = DataLoader(
         train_dataset,
         batch_size=config.BATCH_SIZE,
@@ -117,7 +117,7 @@ if __name__ == "__main__":
     )
     g_scaler = torch.cuda.amp.GradScaler()
     d_scaler = torch.cuda.amp.GradScaler()
-    val_dataset = MapDataset(root_dir=config.VAL_DIR)
+    val_dataset = MapDataset(root_dir=VAL_DIR)
     val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False)
 
 
