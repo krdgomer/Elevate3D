@@ -5,7 +5,7 @@ from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 from torchvision.utils import save_image
 import cv2
-from src.utils.utils import get_both_transform, get_transform_only_input, get_transform_only_mask
+from src.utils.utils import both_transform, transform_only_input, transform_only_mask
 
 
 class MapDataset(Dataset):
@@ -39,12 +39,12 @@ class MapDataset(Dataset):
             input_image = cv2.equalizeHist(input_image)
 
         # Apply augmentations
-        augmentations = get_both_transform(image=input_image, image0=target_image)
+        augmentations = config.both_transform(image=input_image, image0=target_image)
         input_image = augmentations["image"]
         target_image = augmentations["image0"]
 
-        input_image = get_transform_only_input(image=input_image)["image"]
-        target_image = get_transform_only_mask(image=target_image)["image"]
+        input_image = config.transform_only_input(image=input_image)["image"]
+        target_image = config.transform_only_mask(image=target_image)["image"]
 
         return input_image, target_image
 
