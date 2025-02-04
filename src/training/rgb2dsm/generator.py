@@ -69,6 +69,10 @@ class Generator(nn.Module):
             nn.ConvTranspose2d(features * 2, 1, kernel_size=4, stride=2, padding=1),
             nn.Tanh(),
         )
+        self.residual_layers = nn.ModuleList( [
+            nn.Conv2d(features * 8, features *8, 3,1,1,padding_mode="reflect")
+            for _ in range(3)
+        ])
 
     def forward(self, x):
         d1 = self.initial_down(x)
@@ -79,6 +83,8 @@ class Generator(nn.Module):
         d6 = self.down5(d5)
         d7 = self.down6(d6)
         bottleneck = self.bottleneck(d7)
+        for layer in self.residual_layers:
+            bottleneck = bottleneck + layer(bottleneck)
         up1 = self.up1(bottleneck)
         up2 = self.up2(torch.cat([up1, d7], 1))
         up3 = self.up3(torch.cat([up2, d6], 1))
