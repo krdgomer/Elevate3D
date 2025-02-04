@@ -40,35 +40,4 @@ def load_checkpoint(checkpoint_file, model, optimizer, lr):
     for param_group in optimizer.param_groups:
         param_group["lr"] = lr
 
-def get_both_transform(image_size=512):
-    return A.Compose(
-        [A.Resize(width=image_size, height=image_size)], 
-        additional_targets={"image0": "image"}
-    )
 
-def get_transform_only_input():
-    return A.Compose(
-        [
-            A.HorizontalFlip(p=0.5),
-            A.ColorJitter(p=0.2),
-            A.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], max_pixel_value=255.0),
-            ToTensorV2(),
-        ]
-    )
-
-def get_transform_only_mask():
-    return A.Compose(
-        [
-            A.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], max_pixel_value=255.0),
-            ToTensorV2(),
-        ]
-    )
-
-def normalize_image(img):
-    """Normalize an image to the range [0, 1]."""
-    return (img - np.min(img)) / (np.max(img) - np.min(img))
-    
-def save_image(image, filename):
-    """Save an image as an 8-bit grayscale PNG."""
-    image_scaled = (normalize_image(image) * 255).astype(np.uint8)
-    cv2.imwrite(filename, image_scaled)
