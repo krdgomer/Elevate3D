@@ -5,7 +5,7 @@ from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 from torchvision.utils import save_image
 import cv2
-from src.utils.utils import both_transform, transform_only_input, transform_only_mask
+from src.utils.utils import get_both_transform, get_transform_only_input, get_transform_only_mask
 
 
 class MapDataset(Dataset):
