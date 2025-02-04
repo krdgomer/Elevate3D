@@ -39,7 +39,7 @@ def train_fn(
             y = y.to(config.DEVICE)
 
             # Train Discriminator. Computes real (D_real) and fake (D_fake) losses using Binary Cross-Entropy (BCE).
-            with torch.cuda.amp.autocast():
+            with torch.amp.autocast(config.DEVICE):
                 y_fake = gen(x)
                 D_real = disc(x, y)
                 D_real_loss = bce(D_real, torch.ones_like(D_real))
@@ -54,7 +54,7 @@ def train_fn(
             d_scaler.update()
 
             # Train generator
-            with torch.cuda.amp.autocast():
+            with torch.amp.autocast(config.DEVICE):
                 D_fake = disc(x, y_fake)
                 G_fake_loss = bce(D_fake, torch.ones_like(D_fake))
                 L1 = l1_loss(y_fake, y) * config.L1_LAMBDA
@@ -115,8 +115,8 @@ if __name__ == "__main__":
         shuffle=True,
         num_workers=config.NUM_WORKERS,
     )
-    g_scaler = torch.cuda.amp.GradScaler()
-    d_scaler = torch.cuda.amp.GradScaler()
+    g_scaler = torch.amp.GradScaler(config.DEVICE)
+    d_scaler = torch.amp.GradScaler(config.DEVICE)
     val_dataset = MapDataset(root_dir=VAL_DIR)
     val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False)
 
