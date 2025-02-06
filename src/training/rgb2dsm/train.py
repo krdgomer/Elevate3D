@@ -161,4 +161,5 @@ if __name__ == "__main__":
     plt.ylabel("Loss")
     plt.legend()
     plt.title("Loss During Training")
+    plt.savefig("training_loss_plot.png")  # Save plot as an image
     plt.show()
