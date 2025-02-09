@@ -3,3 +3,9 @@ tqdm
 torchvision
 numpy
 pillow
+early_stopping_pytorch
+matplotlib
+argparse
+scikit-learn
+cv2
+scikit-image
