@@ -1,0 +1,6 @@
+Evaluation Results:
+Mean Squared Error: 0.1474
+Root Mean Squared Error: 0.3371
+Mean Absolute Error: 0.2676
+Structural Similarity Index (SSIM): 0.4349
+Peak Signal-to-Noise Ratio (PSNR): 15.3296 dB
