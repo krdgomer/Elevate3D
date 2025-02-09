@@ -5,8 +5,8 @@ import torch.nn as nn
 from skimage.metrics import structural_similarity as ssim
 from skimage.metrics import peak_signal_noise_ratio as psnr
 import matplotlib.pyplot as plt
-from src.training.rgb2dsm.generator import Generator
-from src.training.rgb2dsm.dataset import MapDataset
+from src.rgb2dsm.training.generator import Generator
+from src.rgb2dsm.training.dataset import MapDataset
 from tqdm import tqdm
 
 def normalize_safe(array):
@@ -103,7 +103,7 @@ def test(model,test_loader,device,save_path="test_results"):
                     print(f"Error calculating SSIM/PSNR: {e}")
                 
             
-            if idx % 10 == 0:  
+            if idx % 50 == 0:  
                 visualize_predictions(x[0], y[0], pred_dsms[0], 
                                     f'{save_path}/pred_{idx}.png')
 
@@ -142,14 +142,14 @@ def visualize_predictions(input_img, target_dsm, pred_dsm, save_path):
     
     # Plot target DSM
     plt.subplot(1, 3, 2)
-    plt.imshow(target_dsm.cpu().numpy().squeeze(), cmap='terrain')
+    plt.imshow(target_dsm.cpu().numpy().squeeze(), cmap='gray')
     plt.colorbar(label='Elevation')
     plt.title('Target DSM')
     plt.axis('off')
     
     # Plot predicted DSM
     plt.subplot(1, 3, 3)
-    plt.imshow(pred_dsm.cpu().numpy().squeeze(), cmap='terrain')
+    plt.imshow(pred_dsm.cpu().numpy().squeeze(), cmap='gray')
     plt.colorbar(label='Elevation')
     plt.title('Predicted DSM')
     plt.axis('off')
@@ -159,9 +159,9 @@ def visualize_predictions(input_img, target_dsm, pred_dsm, save_path):
     plt.close()
 
 if __name__ == "__main__":
-    generator = load_generator("src/models/rgb2dsm/v0.1/rgb_dsm_model/gen.pth.tar")
-    test_dataset = MapDataset("src/datasets/rgb_dsm/test")
+    generator = load_generator("src/rgb2dsm/models/v0.1/weights/gen.pth.tar")
+    test_dataset = MapDataset("src/rgb2dsm/datasets/test")
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=1, shuffle=False)
     device = torch.device("cude" if torch.cuda.is_available() else "cpu")
 
-    metrics = test(generator, test_loader, device)
+    metrics = test(generator, test_loader, device,save_path="src/rgb2dsm/models/v0.1/test_results")
