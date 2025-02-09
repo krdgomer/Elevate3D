@@ -1,9 +1,9 @@
-src/datasets
 data
-src/training/train
-src/training/val
-src/training/generated
 elevate3d.egg-info
 __pycache__
 .idea
-src/models
+src/rgb2dsm/datasets
+src/dsm2dtm/datasets
+src/rgb2dsm/evaluation/images
+disc.pth.tar
+gen.pth.tar
