@@ -2,8 +2,9 @@ data
 elevate3d.egg-info
 __pycache__
 .idea
-src/rgb2dsm/datasets
-src/dsm2dtm/datasets
 src/rgb2dsm/evaluation/images
 disc.pth.tar
 gen.pth.tar
+datasets
+predictions
+test_results
