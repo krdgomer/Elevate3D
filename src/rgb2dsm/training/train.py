@@ -2,15 +2,15 @@ import torch
 from src.utils.utils import save_checkpoint, load_checkpoint, save_some_examples
 import torch.nn as nn
 import torch.optim as optim
-from src.rgb2dsm.training.dataset import MapDataset
-from src.rgb2dsm.training.generator import Generator
-from src.rgb2dsm.training.discriminator import Discriminator
+from src.training.rgb2dsm.dataset import MapDataset
+from src.training.rgb2dsm.generator import Generator
+from src.training.rgb2dsm.discriminator import Discriminator
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from src.configs import rgb2dsm_config as config
 import matplotlib.pyplot as plt
 import argparse
-from early_stopping_pytorch import EarlyStopping
+from src.rgb2dsm.training.loss_function import ElevationLoss
 
 torch.backends.cudnn.benchmark = True
 
@@ -89,7 +89,7 @@ def train_fn(
         avg_disc_loss = total_disc_loss
         avg_gen_loss = total_gen_loss
         
-    return avg_disc_loss, avg_gen_loss,total_gen_loss
+    return avg_disc_loss, avg_gen_loss
 
 
 if __name__ == "__main__":
@@ -97,14 +97,8 @@ if __name__ == "__main__":
     gen = Generator(in_channels=1, features=64).to(config.DEVICE)
     opt_disc = optim.Adam(disc.parameters(), lr=config.LEARNING_RATE, betas=(0.5, 0.999),)
     opt_gen = optim.Adam(gen.parameters(), lr=config.LEARNING_RATE, betas=(0.5, 0.999))
-
-    scheduler_disc = optim.lr_scheduler.StepLR(opt_disc,step_size=50,gamma=0.5)
-    scheduler_gen = optim.lr_scheduler.StepLR(opt_gen,step_size=50,gamma=0.5)
-
-    early_stopping = EarlyStopping(patience=20,verbose=True)
-
     BCE = nn.BCEWithLogitsLoss()
-    L1_LOSS = nn.L1Loss()
+    L1_LOSS = ElevationLoss(base_weight=1.0,critical_range_weight=2.0,critical_range=(144, 200))
 
     # Loads pre-trained model weights if LOAD_MODEL is True.
     if config.LOAD_MODEL:
@@ -115,7 +109,7 @@ if __name__ == "__main__":
             config.CHECKPOINT_DISC, disc, opt_disc, config.LEARNING_RATE,
         )
 
-    train_dataset = MapDataset(root_dir=TRAIN_DIR,apply_histogram_eq=True)
+    train_dataset = MapDataset(root_dir=TRAIN_DIR)
     train_loader = DataLoader(
         train_dataset,
         batch_size=config.BATCH_SIZE,
@@ -133,7 +127,7 @@ if __name__ == "__main__":
     for epoch in range(config.NUM_EPOCHS):
         print(f"Epoch {epoch+1}/{config.NUM_EPOCHS}")
         try:
-            avg_disc_loss, avg_gen_loss, gen_loss = train_fn(
+            avg_disc_loss, avg_gen_loss = train_fn(
                 disc, gen, train_loader, opt_disc, opt_gen, L1_LOSS, BCE, g_scaler, d_scaler,
             )
             print(f"Returned losses - Disc: {avg_disc_loss:.4f}, Gen: {avg_gen_loss:.4f}")
@@ -145,13 +139,8 @@ if __name__ == "__main__":
         if config.SAVE_MODEL and epoch % 5 == 0:
             save_checkpoint(gen, opt_gen, filename=config.CHECKPOINT_GEN)
             save_checkpoint(disc, opt_disc, filename=config.CHECKPOINT_DISC)
-        
-        early_stopping(gen_loss,gen)
-        if early_stopping.early_stop:
-            print("Early stopping")
-            break
 
-        save_some_examples(gen, val_loader, epoch, folder="/content/drive/MyDrive/ProjeDosyalari/rgb2dsm/v0.3/rgb_dsm_generated/")
+        save_some_examples(gen, val_loader, epoch, folder="/content/drive/MyDrive/ProjeDosyalari/rgb2dsm/v0.2/rgb_dsm_generated/")
     
     
 
