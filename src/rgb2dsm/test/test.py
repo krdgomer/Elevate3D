@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import os
 from src.rgb2dsm.training.generator import Generator
+from src.rgb2dsm.training.dataset import MapDataset
 
 class TestClass:
     def __init__(self, model_path, device="cpu"):
@@ -182,3 +183,11 @@ class TestClass:
         # Save the combined image using PIL
         combined_pil = Image.fromarray(combined_image)
         combined_pil.save(save_path)
+
+if __name__ == "__main__":
+    # Test the model on the test dataset
+    test_dataset = MapDataset("src/rgb2dsm/datasets/test")
+    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=1, shuffle=False)
+
+    predictor = TestClass("src/rgb2dsm/models/v0.2/weights/gen.pth.tar", "cpu")
+    predictor.test(test_loader, "src/rgb2dsm/models/v0.2/testinggg")
