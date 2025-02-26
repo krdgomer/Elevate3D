@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 class ElevationLoss(nn.Module):
-    def __init__(self, base_weight=1.0, critical_range_weight=2.0, critical_range=(144, 200)):
+    def __init__(self, base_weight=1.0, critical_range_weight=3.0, critical_range=(0, 100)):
         """
         Custom loss function for DSM generation that applies higher weights to errors
         in specified elevation ranges.
