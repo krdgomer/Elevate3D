@@ -8,3 +8,4 @@ gen.pth.tar
 datasets
 predictions
 test_results
+results.txt
