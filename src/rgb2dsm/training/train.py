@@ -98,7 +98,7 @@ if __name__ == "__main__":
     opt_disc = optim.Adam(disc.parameters(), lr=config.LEARNING_RATE, betas=(0.5, 0.999),)
     opt_gen = optim.Adam(gen.parameters(), lr=config.LEARNING_RATE, betas=(0.5, 0.999))
     BCE = nn.BCEWithLogitsLoss()
-    L1_LOSS = ElevationLoss(base_weight=1.0,critical_range_weight=2.0,critical_range=(144, 200))
+    L1_LOSS = ElevationLoss(base_weight=1.0, critical_range_weight=2.0, critical_range=(144, 200), perceptual_weight=0.1).to(config.DEVICE)
 
     # Loads pre-trained model weights if LOAD_MODEL is True.
     if config.LOAD_MODEL:
