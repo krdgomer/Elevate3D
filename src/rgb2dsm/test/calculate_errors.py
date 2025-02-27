@@ -16,8 +16,8 @@ class ErrorCalculator():
     def load_and_split_image(self,img_path):
         image = np.array(Image.open(img_path))
 
-        input_image = image[:, :256, :]
-        prediction_image = image[:, 256:, :]
+        input_image = image[:, :512, :]
+        prediction_image = image[:, 512:, :]
 
         input_image = np.array(Image.fromarray(input_image).convert("L"))
         prediction_image = np.array(Image.fromarray(prediction_image).convert("L"))
