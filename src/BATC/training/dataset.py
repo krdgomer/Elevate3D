@@ -7,8 +7,8 @@ import cv2
 import numpy as np
 
 class BuildingDataset(Dataset):
-    def __init__(self, root_dir, annotation_path, transform=None):
-        self.root_dir = root_dir
+    def __init__(self, images_dir, annotation_path, transform=None):
+        self.images_dir = images_dir
         self.coco = COCO(annotation_path)
         self.image_ids = list(self.coco.imgs.keys())
         self.transform = transform
@@ -17,7 +17,7 @@ class BuildingDataset(Dataset):
     def __getitem__(self, idx):
         image_id = self.image_ids[idx]
         image_info = self.coco.loadImgs(image_id)[0]
-        image = cv2.imread(f"{self.image_dir}/{image_info['file_name']}")
+        image = cv2.imread(f"{self.images_dir}/{image_info['file_name']}")
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
         ann_ids = self.coco.getAnnIds(imgIds=image_id)
