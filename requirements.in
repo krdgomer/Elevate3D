@@ -1,0 +1,13 @@
+torch
+tqdm
+torchvision
+numpy
+pillow
+matplotlib
+argparse
+scikit-learn
+opencv-python
+scikit-image
+albumentations
+trimesh
+shapely
