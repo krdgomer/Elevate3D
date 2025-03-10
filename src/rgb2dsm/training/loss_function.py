@@ -2,11 +2,18 @@ import torch
 import torch.nn as nn
 from torchvision import models
 
+
 class ElevationLoss(nn.Module):
-    def __init__(self, base_weight=1.0, critical_range_weight=2.0, critical_range=(144, 200), perceptual_weight=0.1):
+    def __init__(
+        self,
+        base_weight=1.0,
+        critical_range_weight=2.0,
+        critical_range=(144, 200),
+        perceptual_weight=0.1,
+    ):
         """
         Custom loss function combining weighted L1 loss with perceptual loss.
-        
+
         Args:
             base_weight (float): Base weight for all elevation values.
             critical_range_weight (float): Weight multiplier for the critical range.
@@ -46,14 +53,16 @@ class ElevationLoss(nn.Module):
         Returns:
             torch.Tensor: Perceptual loss value.
         """
-        pred_features = self.vgg(pred.repeat(1, 3, 1, 1))  # Repeat channels to match VGG input
+        pred_features = self.vgg(
+            pred.repeat(1, 3, 1, 1)
+        )  # Repeat channels to match VGG input
         target_features = self.vgg(target.repeat(1, 3, 1, 1))
         return self.l1_loss(pred_features, target_features)
 
     def forward(self, pred, target):
         """
         Compute combined weighted L1 loss and perceptual loss.
-        
+
         Args:
             pred (torch.Tensor): Predicted DSM values.
             target (torch.Tensor): Ground truth DSM values.
