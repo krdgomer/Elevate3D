@@ -46,4 +46,3 @@ class MapDataset(Dataset):
         target_image = config.transform_only_mask(image=target_image)["image"]
 
         return input_image, target_image
-

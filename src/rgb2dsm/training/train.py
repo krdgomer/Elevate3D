@@ -16,24 +16,43 @@ torch.backends.cudnn.benchmark = True
 
 # Argument parser
 parser = argparse.ArgumentParser(description="Training Configuration")
-parser.add_argument("--train_dir", type=str, required=True, help="Path to the training dataset directory")
-parser.add_argument("--val_dir", type=str, required=True, help="Path to the validation dataset directory")
+parser.add_argument(
+    "--train_dir",
+    type=str,
+    required=True,
+    help="Path to the training dataset directory",
+)
+parser.add_argument(
+    "--val_dir",
+    type=str,
+    required=True,
+    help="Path to the validation dataset directory",
+)
 args = parser.parse_args()
 
 TRAIN_DIR = args.train_dir
 VAL_DIR = args.val_dir
 
+
 def train_fn(
-    disc, gen, loader, opt_disc, opt_gen, l1_loss, bce, g_scaler, d_scaler,
+    disc,
+    gen,
+    loader,
+    opt_disc,
+    opt_gen,
+    l1_loss,
+    bce,
+    g_scaler,
+    d_scaler,
 ):
     loop = tqdm(loader, leave=True)
     total_disc_loss = 0
     total_gen_loss = 0
-    
+
     # Add a check for empty loader
     if len(loader) == 0:
         return 0.0, 0.0  # Return default values if loader is empty
-    
+
     for idx, (x, y) in enumerate(loop):
         try:
             x = x.to(config.DEVICE)
@@ -79,7 +98,7 @@ def train_fn(
         except Exception as e:
             print(f"Error during training iteration {idx}: {str(e)}")
             continue
-    
+
     # Calculate average losses
     try:
         avg_disc_loss = total_disc_loss / len(loader)
@@ -88,25 +107,40 @@ def train_fn(
         print("Warning: Empty loader or division by zero")
         avg_disc_loss = total_disc_loss
         avg_gen_loss = total_gen_loss
-        
+
     return avg_disc_loss, avg_gen_loss
 
 
 if __name__ == "__main__":
     disc = Discriminator(in_channels=1).to(config.DEVICE)
     gen = Generator(in_channels=1, features=64).to(config.DEVICE)
-    opt_disc = optim.Adam(disc.parameters(), lr=config.LEARNING_RATE, betas=(0.5, 0.999),)
+    opt_disc = optim.Adam(
+        disc.parameters(),
+        lr=config.LEARNING_RATE,
+        betas=(0.5, 0.999),
+    )
     opt_gen = optim.Adam(gen.parameters(), lr=config.LEARNING_RATE, betas=(0.5, 0.999))
     BCE = nn.BCEWithLogitsLoss()
-    L1_LOSS = ElevationLoss(base_weight=1.0, critical_range_weight=2.0, critical_range=(144, 200), perceptual_weight=0.1).to(config.DEVICE)
+    L1_LOSS = ElevationLoss(
+        base_weight=1.0,
+        critical_range_weight=2.0,
+        critical_range=(144, 200),
+        perceptual_weight=0.1,
+    ).to(config.DEVICE)
 
     # Loads pre-trained model weights if LOAD_MODEL is True.
     if config.LOAD_MODEL:
         load_checkpoint(
-            config.CHECKPOINT_GEN, gen, opt_gen, config.LEARNING_RATE,
+            config.CHECKPOINT_GEN,
+            gen,
+            opt_gen,
+            config.LEARNING_RATE,
         )
         load_checkpoint(
-            config.CHECKPOINT_DISC, disc, opt_disc, config.LEARNING_RATE,
+            config.CHECKPOINT_DISC,
+            disc,
+            opt_disc,
+            config.LEARNING_RATE,
         )
 
     train_dataset = MapDataset(root_dir=TRAIN_DIR)
@@ -121,16 +155,25 @@ if __name__ == "__main__":
     val_dataset = MapDataset(root_dir=VAL_DIR)
     val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False)
 
-
     disc_losses = []
     gen_losses = []
     for epoch in range(config.NUM_EPOCHS):
         print(f"Epoch {epoch+1}/{config.NUM_EPOCHS}")
         try:
             avg_disc_loss, avg_gen_loss = train_fn(
-                disc, gen, train_loader, opt_disc, opt_gen, L1_LOSS, BCE, g_scaler, d_scaler,
+                disc,
+                gen,
+                train_loader,
+                opt_disc,
+                opt_gen,
+                L1_LOSS,
+                BCE,
+                g_scaler,
+                d_scaler,
             )
-            print(f"Returned losses - Disc: {avg_disc_loss:.4f}, Gen: {avg_gen_loss:.4f}")
+            print(
+                f"Returned losses - Disc: {avg_disc_loss:.4f}, Gen: {avg_gen_loss:.4f}"
+            )
             disc_losses.append(avg_disc_loss)
             gen_losses.append(avg_gen_loss)
         except Exception as e:
@@ -140,15 +183,11 @@ if __name__ == "__main__":
             save_checkpoint(gen, opt_gen, filename=config.CHECKPOINT_GEN)
             save_checkpoint(disc, opt_disc, filename=config.CHECKPOINT_DISC)
 
-        
-    
-    
-
     plt.plot(disc_losses, label="Discriminator Loss")
     plt.plot(gen_losses, label="Generator Loss")
     plt.xlabel("Epoch")
     plt.ylabel("Loss")
     plt.legend()
     plt.title("Loss During Training")
-    plt.savefig("training_loss_plot.png")  # Save plot as an image
+    plt.savefig("training_loss_plot.png")  
     plt.show()
