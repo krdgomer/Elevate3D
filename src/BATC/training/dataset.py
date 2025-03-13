@@ -1,8 +1,6 @@
 import torch
-import torchvision
 from torch.utils.data import Dataset
 from pycocotools.coco import COCO
-import json
 import cv2
 import numpy as np
 
