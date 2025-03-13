@@ -33,7 +33,7 @@ def get_model(num_classes):
     model = torchvision.models.detection.maskrcnn_resnet50_fpn(weights=MaskRCNN_ResNet50_FPN_Weights.DEFAULT)
 
     in_features = model.roi_heads.box_predictor.cls_score.in_features
-    model.roi_heads.box_predictor = MaskRCNNPredictor(in_features, num_classes=num_classes)
+    model.roi_heads.box_predictor = MaskRCNNPredictor(in_features,256, num_classes=num_classes)
 
     return model
 
