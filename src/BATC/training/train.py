@@ -1,115 +1,107 @@
-import torch
-import torchvision
-import torchvision.transforms as T
-from torch.utils.data import DataLoader
-from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor, MaskRCNN_ResNet50_FPN_Weights
-import matplotlib.pyplot as plt
-import numpy as np
-import cv2
-from src.BATC.training.dataset import BuildingDataset
 import argparse
+import torch
+import os
+from src.BATC.model import get_model
 import src.configs.maskrcnn_config as cfg
+import numpy as np
+from src.BATC.training.dataset import MaskRCNNDataset, custom_collate
+import torch.optim as optim
 from tqdm import tqdm
 
+
+# Argument parser
 parser = argparse.ArgumentParser(description="Training Configuration")
-parser.add_argument("--train_images_dir", type=str, required=True)
-parser.add_argument("--train_annotations_dir", type=str, required=True)
-parser.add_argument("--val_images_dir", type=str, required=True)
-parser.add_argument("--val_annotations_dir", type=str, required=True)
+parser.add_argument(
+    "--images_path",
+    type=str,
+    required=True,
+    help="Path to the images directory",
+)
+parser.add_argument(
+    "--masks_path",
+    type=str,
+    required=True,
+    help="Path to the masks directory",
+)
+parser.add_argument(
+    "--save_path",
+    type=str,
+    required=True,
+    help="Path to save the trained model",
+)
 args = parser.parse_args()
 
-TRAIN_IMAGES_DIR = args.train_images_dir
-TRAIN_ANNOTATIONS_DIR = args.train_annotations_dir
-VAL_IMAGES_DIR = args.val_images_dir
-VAL_ANNOTATIONS_DIR = args.val_annotations_dir
+IMAGES_PATH = args.images_path
+MASKS_PATH = args.masks_path
+SAVE_PATH = args.save_path
 
-train_dataset = BuildingDataset(TRAIN_IMAGES_DIR, TRAIN_ANNOTATIONS_DIR)
-val_dataset = BuildingDataset(VAL_IMAGES_DIR, VAL_ANNOTATIONS_DIR)
+def train():
+    images = sorted(os.listdir(IMAGES_PATH))
+    masks = sorted(os.listdir(MASKS_PATH))
 
-train_loader = DataLoader(train_dataset, batch_size=cfg.BATCH_SIZE, shuffle=True, num_workers=cfg.NUM_WORKERS)
-val_loader = DataLoader(val_dataset, batch_size=cfg.BATCH_SIZE, shuffle=False, num_workers=cfg.NUM_WORKERS)
+    num = int(0.9 * len(images))
+    num = num if num % 2 == 0 else num + 1
+    train_imgs_inds = np.random.choice(range(len(images)) , num , replace = False)
+    val_imgs_inds = np.setdiff1d(range(len(images)) , train_imgs_inds)
+    train_imgs = np.array(images)[train_imgs_inds]
+    val_imgs = np.array(images)[val_imgs_inds]
+    train_masks = np.array(masks)[train_imgs_inds]
+    val_masks = np.array(masks)[val_imgs_inds]
 
-def get_model(num_classes):
-    model = torchvision.models.detection.maskrcnn_resnet50_fpn(weights=MaskRCNN_ResNet50_FPN_Weights.DEFAULT)
+    train_dl = torch.utils.data.DataLoader(MaskRCNNDataset(train_imgs , train_masks,IMAGES_PATH,MASKS_PATH) ,
+                                 batch_size = cfg.BATCH_SIZE ,
+                                 shuffle = True ,
+                                 collate_fn = custom_collate ,
+                                 num_workers = cfg.NUM_WORKERS ,
+                                 pin_memory = True if torch.cuda.is_available() else False)
+    val_dl = torch.utils.data.DataLoader(MaskRCNNDataset(val_imgs , val_masks,IMAGES_PATH,MASKS_PATH) ,
+                                 batch_size = cfg.BATCH_SIZE ,
+                                 shuffle = False ,
+                                 collate_fn = custom_collate ,
+                                 num_workers = cfg.NUM_WORKERS ,
+                                 pin_memory = True if torch.cuda.is_available() else False)
+    
+    model = get_model().to(cfg.DEVICE)
+    optimizer = optim.SGD([p for p in model.parameters() if p.requires_grad], lr=cfg.LEARNING_RATE, momentum=cfg.MOMENTUM, weight_decay=cfg.WEIGHT_DECAY)
 
-    in_features = model.roi_heads.box_predictor.cls_score.in_features
-    model.roi_heads.box_predictor = MaskRCNNPredictor(in_features,256, num_classes=num_classes)
+    all_train_losses = []
+    flag = False
 
-    return model
+    for epoch in range(cfg.NUM_EPOCHS):
+        train_epoch_loss = 0
+        model.train()
 
-num_classes = 2  # Background + Buildings
-model = get_model(num_classes)
+        # Training loop with tqdm progress bar
+        train_pbar = tqdm(train_dl, total=len(train_dl), desc=f"Epoch {epoch+1}/2 - Training")
+        for imgs, targets in train_pbar:
+            # Move data to the correct device
+            imgs = [img.to(cfg.DEVICE) for img in imgs]
+            targets = [{k: v.to(cfg.DEVICE) for k, v in t.items()} for t in targets]
 
-device = cfg.DEVICE
-model.to(device)
+            # Forward pass
+            loss_dict = model(imgs, targets)
+            if not flag:
+                print(loss_dict)
+                flag = True
 
-params = [p for p in model.parameters() if p.requires_grad]
-optimizer = torch.optim.SGD(params, lr=0.005, momentum=0.9, weight_decay=0.0005)
-lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
+            # Sum losses
+            losses = sum(loss for loss in loss_dict.values())
+            train_epoch_loss += losses.item()
 
-best_loss = float('inf')
-train_losses = []
+            # Backward pass and optimization
+            optimizer.zero_grad()
+            losses.backward()
+            optimizer.step()
 
-for epoch in range(cfg.NUM_EPOCHS):
-    model.train()
-    total_loss = 0
+            # Update progress bar
+            train_pbar.set_postfix(loss=train_epoch_loss / len(train_dl))
 
-    # Add tqdm progress bar for training loop
-    train_loader_tqdm = tqdm(train_loader, desc=f"Epoch {epoch+1}/{cfg.NUM_EPOCHS}", unit="batch")
+        all_train_losses.append(train_epoch_loss)
 
-    for images, targets in train_loader_tqdm:
-        images = [img.to(device) for img in images]
-        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+        print(f"Epoch {epoch+1}/2 - Train Loss: {train_epoch_loss:.4f}")
 
-        loss_dict = model(images, targets)
-        loss = sum(loss for loss in loss_dict.values())
+    if cfg.SAVE_MODEL:
+        torch.save(model.state_dict(), SAVE_PATH + "maskrcnn_weights.pth")
 
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        total_loss += loss.item()
-
-        # Update tqdm description with current loss
-        train_loader_tqdm.set_postfix(loss=total_loss / len(train_loader))
-
-    lr_scheduler.step()
-
-    avg_loss = total_loss / len(train_loader)
-    train_losses.append(avg_loss)
-    print(f"Epoch {epoch+1}/{cfg.NUM_EPOCHS}, Loss: {avg_loss:.4f}")
-
-    # Save the best model
-    if avg_loss < best_loss:
-        best_loss = avg_loss
-        torch.save(model.state_dict(), "best_mask_rcnn_buildings.pth")
-
-model.eval()
-with torch.no_grad():
-    # Add tqdm progress bar for validation loop
-    val_loader_tqdm = tqdm(val_loader, desc="Validation", unit="batch")
-
-    for images, targets in val_loader_tqdm:
-        images = [img.to(device) for img in images]
-        predictions = model(images)
-
-        # Visualize Predictions
-        for img, pred in zip(images, predictions):
-            img = img.permute(1, 2, 0).cpu().numpy()
-            plt.figure(figsize=(10, 10))
-            plt.imshow(img)
-
-            for mask in pred["masks"]:
-                mask = mask[0].cpu().numpy()
-                plt.imshow(mask, alpha=0.5, cmap="jet")
-
-            plt.show()
-
-# Plot the training loss graph
-plt.figure()
-plt.plot(range(1, cfg.NUM_EPOCHS + 1), train_losses, label='Training Loss')
-plt.xlabel('Epoch')
-plt.ylabel('Loss')
-plt.title('Training Loss Over Epochs')
-plt.legend()
-plt.show()
+if __name__ == "__main__":
+    train()

@@ -1,7 +1,11 @@
 import torch
-import torch.nn as nn
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+LEARNING_RATE = 0.005
+MOMENTUM= 0.9
+WEIGHT_DECAY = 0.0005
 BATCH_SIZE = 4
-NUM_WORKERS = 2
-NUM_EPOCHS = 100
+NUM_WORKERS = 8
+NUM_EPOCHS = 2
+LOAD_MODEL = False
+SAVE_MODEL = False

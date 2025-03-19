@@ -1,47 +1,82 @@
-import os
-import torch
-from torch.utils.data import Dataset
-from pycocotools.coco import COCO
-import cv2
+from PIL import Image
 import numpy as np
+import torch
+from torchvision import transforms as T
 
-class BuildingDataset(Dataset):
-    def __init__(self, images_dir, annotation_path, transform=None):
-        self.images_dir = images_dir
-        self.coco = COCO(annotation_path)
-        self.image_ids = list(self.coco.imgs.keys())
-        self.transform = transform
 
-        # Filter out image IDs that don't exist on disk
-        self.image_ids = [
-            img_id for img_id in self.image_ids
-            if os.path.exists(os.path.join(self.images_dir, self.coco.imgs[img_id]['file_name']))
-        ]
-        
-        print(f"Filtered dataset: {len(self.image_ids)} valid images found.")
-
-    def __len__(self):
-        return len(self.image_ids)
+class MaskRCNNDataset(torch.utils.data.Dataset):
+    def __init__(self, images, masks,images_path,masks_path):
+        self.imgs = images
+        self.masks = masks
+        self.images_path = images_path
+        self.masks_path = masks_path
 
     def __getitem__(self, idx):
-        image_id = self.image_ids[idx]
-        image_info = self.coco.loadImgs(image_id)[0]
-        image_path = os.path.join(self.images_dir, image_info['file_name'])
+        # Load the image and mask
+        img = Image.open(self.images_path + self.imgs[idx]).convert("RGB")
+        mask = Image.open(self.masks_path + self.masks[idx])
+        mask = np.array(mask)
 
-        image = cv2.imread(image_path)
-        
-        # Handle missing or corrupt images
-        if image is None:
-            print(f"Warning: Image {image_path} is missing or corrupt, skipping...")
-            return self.__getitem__((idx + 1) % len(self.image_ids))  # Load next valid image
+        # Get unique object IDs (excluding background)
+        obj_ids = np.unique(mask)
+        obj_ids = obj_ids[1:]  # Exclude background (0)
 
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        # Create masks and bounding boxes for each object
+        num_objs = len(obj_ids)
+        masks = np.zeros((num_objs, mask.shape[0], mask.shape[1]))
+        boxes = []
+        for i, obj_id in enumerate(obj_ids):
+            masks[i] = mask == obj_id
+            pos = np.where(masks[i])
+            if pos[0].size == 0 or pos[1].size == 0:  # Skip if no pixels
+                continue
 
-        ann_ids = self.coco.getAnnIds(imgIds=image_id)
-        anns = self.coco.loadAnns(ann_ids)
+            xmin = np.min(pos[1])
+            xmax = np.max(pos[1])
+            ymin = np.min(pos[0])
+            ymax = np.max(pos[0])
 
-        masks = np.zeros((image_info['height'], image_info['width']), dtype=np.uint8)
-        for ann in anns:
-            masks = np.maximum(masks, self.coco.annToMask(ann) * ann["category_id"])
+            if xmax > xmin and ymax > ymin:  # Filter invalid boxes
+                boxes.append([xmin, ymin, xmax, ymax])
 
-        return torch.tensor(image).permute(2, 0, 1), torch.tensor(masks, dtype=torch.uint8)
+        # Handle cases with no valid boxes
+        if len(boxes) == 0:
+            boxes = torch.empty((0, 4), dtype=torch.float32)
+            labels = torch.empty((0,), dtype=torch.int64)
+            masks = torch.empty((0, *mask.shape), dtype=torch.uint8)
+        else:
+            boxes = torch.as_tensor(boxes, dtype=torch.float32)
+            labels = torch.ones((len(boxes),), dtype=torch.int64)
+            masks = torch.as_tensor(masks, dtype=torch.uint8)
+
+        # Create the target dictionary
+        target = {}
+        target["boxes"] = boxes
+        target["labels"] = labels
+        target["masks"] = masks
+
+        # Convert the image to a tensor
+        img = T.ToTensor()(img)
+
+        return img, target
+
+    def __len__(self):
+        return len(self.imgs)
+    
+def custom_collate(batch):
+    images = [item[0] for item in batch]
+    targets = [item[1] for item in batch]
+
+    # Stack images into a single tensor
+    images = torch.stack(images, dim=0)
+
+    # Ensure targets are consistent
+    for target in targets:
+        if "boxes" not in target:
+            target["boxes"] = torch.empty((0, 4), dtype=torch.float32)
+        if "labels" not in target:
+            target["labels"] = torch.empty((0,), dtype=torch.int64)
+        if "masks" not in target:
+            target["masks"] = torch.empty((0, images.shape[2], images.shape[3]), dtype=torch.uint8)
+
+    return images, targets
