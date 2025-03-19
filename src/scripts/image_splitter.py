@@ -1,9 +1,10 @@
 from PIL import Image
 import os
+import numpy as np
 
 # Folder paths
-input_folder = 'data/raw/dtm'  # Path where the original images are stored
-output_folder = 'data/processed/dsm_dtm'  # Path where the split tiles will be saved
+input_folder = 'data/processed/maskrcnn/gti'  # Path where the original images are stored
+output_folder = 'data/processed/maskrcnn/gti_tiles'  # Path where the split tiles will be saved
 
 # Create the output folder if it doesn't exist
 if not os.path.exists(output_folder):
@@ -11,7 +12,7 @@ if not os.path.exists(output_folder):
 
 # List all files in the input folder
 for filename in os.listdir(input_folder):
-    if filename.startswith('dtm_') and filename.endswith('.png'):
+    if filename.endswith('_GTI.png'): 
         # Open the image
         img_path = os.path.join(input_folder, filename)
         img = Image.open(img_path)
@@ -33,8 +34,16 @@ for filename in os.listdir(input_folder):
                     # Crop the image
                     tile = img.crop((left, upper, right, lower))
                     
+                    # Convert the tile to a numpy array
+                    tile_array = np.array(tile)
+                    """
+                    # Check if the tile contains any blank (black) pixels
+                    if np.any(tile_array == 0):  # Assuming black pixels have value 0
+                        print(f"Skipping tile {i * 4 + j + 1} in {filename}: Contains blank pixels")
+                        continue  # Skip this tile"""
+                    
                     # Create the new filename
-                    new_filename = f"dtm_{filename[4:-4]}_{i * 4 + j + 1}.png"
+                    new_filename = f"gti_{filename[4:-4]}_{i * 4 + j + 1}.png"
                     new_file_path = os.path.join(output_folder, new_filename)
                     
                     # Save the cropped tile
