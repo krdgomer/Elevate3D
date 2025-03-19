@@ -108,7 +108,6 @@ def train():
 
         # Validation loop
         print("Starting validation...")
-        model.eval()
         with torch.no_grad():
             val_pbar = tqdm(val_dl, total=len(val_dl), desc=f"Epoch {epoch+1}/{cfg.NUM_EPOCHS} - Validation")
             for imgs, targets in val_pbar:
@@ -116,11 +115,6 @@ def train():
                 targets = [{k: v.to(cfg.DEVICE) for k, v in t.items()} for t in targets]
 
                 loss_dict = model(imgs, targets)
-
-                # Debugging prints
-                print("\n--- VALIDATION DEBUG ---")
-                print(f"Type of loss_dict: {type(loss_dict)}")
-                print(f"Content of loss_dict: {loss_dict}")
 
                 if isinstance(loss_dict, dict):
                     losses = sum(loss for loss in loss_dict.values())
