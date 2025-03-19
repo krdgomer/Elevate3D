@@ -84,10 +84,11 @@ def train():
 
             loss_dict = model(imgs, targets)
 
-            # Debugging prints
-            print("\n--- TRAINING DEBUG ---")
-            print(f"Type of loss_dict: {type(loss_dict)}")
-            print(f"Content of loss_dict: {loss_dict}")
+            if epoch %100 == 0:
+                # Debugging prints
+                print("\n--- TRAINING DEBUG ---")
+                print(f"Type of loss_dict: {type(loss_dict)}")
+                print(f"Content of loss_dict: {loss_dict}")
 
             if isinstance(loss_dict, dict):
                 losses = sum(loss for loss in loss_dict.values())
