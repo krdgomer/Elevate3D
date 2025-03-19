@@ -84,7 +84,7 @@ def train():
 
             loss_dict = model(imgs, targets)
 
-            if epoch %100 == 0:
+            if epoch % 100 == 0:
                 # Debugging prints
                 print("\n--- TRAINING DEBUG ---")
                 print(f"Type of loss_dict: {type(loss_dict)}")
