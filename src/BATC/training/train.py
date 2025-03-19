@@ -84,13 +84,7 @@ def train():
 
             loss_dict = model(imgs, targets)
 
-            if isinstance(loss_dict, dict):
-                losses = sum(loss for loss in loss_dict.values())
-            elif isinstance(loss_dict, list):
-                print("Unexpected list output in training! Check model mode.")
-                losses = torch.tensor(0.0, device=cfg.DEVICE)
-            else:
-                raise TypeError(f"Unexpected loss_dict type: {type(loss_dict)}")
+            losses = sum(loss for loss in loss_dict.values())
 
             train_epoch_loss += losses.item()
 
@@ -115,17 +109,8 @@ def train():
                 targets = [{k: v.to(cfg.DEVICE) for k, v in t.items()} for t in targets]
 
                 loss_dict = model(imgs, targets)
-
-                if isinstance(loss_dict, dict):
-                    losses = sum(loss for loss in loss_dict.values())
-                elif isinstance(loss_dict, list):
-                    print("Unexpected list output in validation! Model might be in eval mode.")
-                    losses = torch.tensor(0.0, device=cfg.DEVICE)
-                else:
-                    raise TypeError(f"Unexpected loss_dict type: {type(loss_dict)}")
-
+                losses = sum(loss for loss in loss_dict.values())
                 val_epoch_loss += losses.item()
-
                 val_pbar.set_postfix(loss=val_epoch_loss / len(val_dl))
 
         all_val_losses.append(val_epoch_loss)
