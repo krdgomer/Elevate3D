@@ -100,6 +100,20 @@ def train():
 
         print(f"Epoch {epoch+1}/2 - Train Loss: {train_epoch_loss:.4f}")
 
+        # Validation loop
+        model.eval()
+        with torch.no_grad():
+            val_pbar = tqdm(val_dl, total=len(val_dl), desc=f"Epoch {epoch+1}/{cfg.NUM_EPOCHS} - Validation")
+            for imgs, targets in val_pbar:
+                imgs = [img.to(cfg.DEVICE) for img in imgs]
+                targets = [{k: v.to(cfg.DEVICE) for k, v in t.items()} for t in targets]
+
+                loss_dict = model(imgs, targets)
+                losses = sum(loss for loss in loss_dict.values())
+                val_epoch_loss += losses.item()
+
+                val_pbar.set_postfix(loss=val_epoch_loss / len(val_dl))
+
     if cfg.SAVE_MODEL:
         torch.save(model.state_dict(), SAVE_PATH + "maskrcnn_weights.pth")
 
