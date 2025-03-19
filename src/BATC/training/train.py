@@ -83,9 +83,21 @@ def train():
             targets = [{k: v.to(cfg.DEVICE) for k, v in t.items()} for t in targets]
 
             loss_dict = model(imgs, targets)
-            if not flag:
-                print("First batch loss dictionary:", loss_dict)
-                flag = True
+
+            # Debugging prints
+            print("\n--- TRAINING DEBUG ---")
+            print(f"Type of loss_dict: {type(loss_dict)}")
+            print(f"Content of loss_dict: {loss_dict}")
+
+            if isinstance(loss_dict, dict):
+                losses = sum(loss for loss in loss_dict.values())
+            elif isinstance(loss_dict, list):
+                print("Unexpected list output in training! Check model mode.")
+                losses = torch.tensor(0.0, device=cfg.DEVICE)
+            else:
+                raise TypeError(f"Unexpected loss_dict type: {type(loss_dict)}")
+
+            train_epoch_loss += losses.item()
 
             losses = sum(loss for loss in loss_dict.values())
             train_epoch_loss += losses.item()
@@ -109,7 +121,20 @@ def train():
                 targets = [{k: v.to(cfg.DEVICE) for k, v in t.items()} for t in targets]
 
                 loss_dict = model(imgs, targets)
-                losses = sum(loss for loss in loss_dict.values())
+
+                # Debugging prints
+                print("\n--- VALIDATION DEBUG ---")
+                print(f"Type of loss_dict: {type(loss_dict)}")
+                print(f"Content of loss_dict: {loss_dict}")
+
+                if isinstance(loss_dict, dict):
+                    losses = sum(loss for loss in loss_dict.values())
+                elif isinstance(loss_dict, list):
+                    print("Unexpected list output in validation! Model might be in eval mode.")
+                    losses = torch.tensor(0.0, device=cfg.DEVICE)
+                else:
+                    raise TypeError(f"Unexpected loss_dict type: {type(loss_dict)}")
+
                 val_epoch_loss += losses.item()
 
                 val_pbar.set_postfix(loss=val_epoch_loss / len(val_dl))
