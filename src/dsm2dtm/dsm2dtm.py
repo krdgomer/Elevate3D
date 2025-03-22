@@ -36,4 +36,4 @@ def generate_dtm(dsm_path, output_path, kernel_size=10, iterations=2, smoothing_
     plt.show()
 
 # Example usage
-generate_dtm("dsm.png", "output_dtm.png", kernel_size=100, iterations=1, smoothing_ksize=101)
+generate_dtm("src/dsm2dtm/dsm.png", "output_dtm.png", kernel_size=100, iterations=1, smoothing_ksize=101)
