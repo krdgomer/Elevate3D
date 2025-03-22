@@ -9,3 +9,5 @@ datasets
 predictions
 test_results
 results.txt
+test_images
+maskrcnn_weights.pth
