@@ -1,25 +1,21 @@
-import sys
-import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
-
 import torch
 import torchvision.transforms as T
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
-from src.BATC.model import get_model
+from models.maskrcnn import get_model
 
-if __name__ == "__main__":
+def predict_mask(image_path, output_path):
+
+    print("Predicting mask...")
     # Load the trained model
     model = get_model()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
     # Load the trained weights
-    model.load_state_dict(torch.load("src/BATC/models/v0.0/maskrcnn_weights.pth", map_location=device))
+    model.load_state_dict(torch.load("src/models/weights/maskrcnn_weights.pth", map_location=device))
     model.eval()
 
-    image_path = "src/BATC/test/input2.png"
     image = cv2.imread(image_path)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
@@ -56,14 +52,6 @@ if __name__ == "__main__":
             label_value = max(1, label_value - 1)
 
     # Save the labeled mask
-    output_path = "src/BATC/test/labeled_mask.png"
     cv2.imwrite(output_path, labeled_mask)
-
-    # Show the result
-    plt.figure(figsize=(10, 10))
-    plt.imshow(labeled_mask, cmap="gray")
-    plt.axis("off")
-    plt.title("Labeled Building Mask")
-    plt.show()
 
     print(f"Labeled mask saved to {output_path}")

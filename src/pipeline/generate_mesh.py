@@ -1,8 +1,5 @@
 import cv2
-from scipy import ndimage
-import trimesh
 import numpy as np
-from PIL import Image
 import open3d as o3d
 
 class MeshGenerator():
@@ -40,6 +37,7 @@ class MeshGenerator():
 
 
     def generate_terrain_mesh(self):
+        print("Generating terrain mesh...")
         rgb = rgb = cv2.cvtColor(cv2.imread(self.rgb_path), cv2.COLOR_BGR2RGB)
         dtm = self.generate_elevation_map()
 
