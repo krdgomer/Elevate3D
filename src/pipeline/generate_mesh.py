@@ -1,62 +1,37 @@
 import cv2
 import numpy as np
 import open3d as o3d
+from scipy.spatial import Delaunay
+from matplotlib.path import Path
+
 
 class MeshGenerator():
-    def __init__(self, rgb_path, dsm_path, dtm_path, masks_path):
+    def __init__(self, rgb_path, dsm_path, dtm_path, masks_path, height_scale=0.1):
         self.rgb_path = rgb_path
         self.dsm_path = dsm_path
         self.dtm_path = dtm_path    
         self.masks_path = masks_path
+        self.height_scale = height_scale  # Scale factor to reduce building heights
 
-    def generate_elevation_map(self):
-        dsm = cv2.imread(self.dsm_path, cv2.IMREAD_GRAYSCALE)  # DSM
-        dtm = cv2.imread(self.dtm_path, cv2.IMREAD_GRAYSCALE)  # DTM
-        mask = cv2.imread(self.masks_path, cv2.IMREAD_GRAYSCALE)  # Labeled mask
+    def load_data(self):
+        self.rgb = cv2.cvtColor(cv2.imread(self.rgb_path), cv2.COLOR_BGR2RGB)
+        self.dsm = cv2.imread(self.dsm_path, cv2.IMREAD_GRAYSCALE).astype(np.float32)
+        self.dtm = cv2.imread(self.dtm_path, cv2.IMREAD_GRAYSCALE).astype(np.float32)
+        self.mask = cv2.imread(self.masks_path, cv2.IMREAD_UNCHANGED)
 
-        assert dsm.shape == dtm.shape == mask.shape, "Image dimensions must match!"
-
-        final_elevation = dtm.copy()
-
-        # Get unique building labels (excluding background 0)
-        unique_buildings = np.unique(mask)
-        unique_buildings = unique_buildings[unique_buildings > 0]  # Remove background (0)
-
-        # Process each building separately
-        for building_id in unique_buildings:
-            # Get mask for the current building
-            building_mask = (mask == building_id)
-
-            # Compute mean DSM elevation for this building
-            mean_elevation = np.mean(dsm[building_mask])
-
-            # Assign the mean elevation to all pixels of this building in the DTM
-            final_elevation[building_mask] = int(mean_elevation)
-
-        return final_elevation
-
+        assert self.rgb.shape[:2] == self.dsm.shape == self.dtm.shape == self.mask.shape, "Image dimensions must match!"
 
     def generate_terrain_mesh(self):
-        print("Generating terrain mesh...")
-        rgb = rgb = cv2.cvtColor(cv2.imread(self.rgb_path), cv2.COLOR_BGR2RGB)
-        dtm = self.generate_elevation_map()
-
-        # Create grid
-        h, w = dtm.shape
+        h, w = self.dtm.shape
         x, y = np.meshgrid(np.arange(w), np.arange(h))
 
-        x_scaled = (x / w) - 0.5
-        y_scaled = (y / h) - 0.5
+        # Flatten arrays
+        vertices = np.stack((x.flatten(), y.flatten(), self.dtm.flatten()), axis=1)
+        vertices[:, 0] /= w
+        vertices[:, 1] /= h
+        vertices[:, 2] *= self.height_scale  # Scale terrain height to match buildings
 
-        # Flatten the arrays
-        x = x.flatten()
-        y = y.flatten()
-        z = dtm.flatten()
-
-        # Create vertices
-        vertices = np.vstack((x, y, z)).T
-
-        # Create faces (triangles)
+        # Generate faces
         faces = []
         for i in range(h - 1):
             for j in range(w - 1):
@@ -64,33 +39,107 @@ class MeshGenerator():
                 faces.append([idx, idx + 1, idx + w])
                 faces.append([idx + 1, idx + w + 1, idx + w])
 
-        faces = np.array(faces)
+        mesh = o3d.geometry.TriangleMesh(
+            vertices=o3d.utility.Vector3dVector(vertices),
+            triangles=o3d.utility.Vector3iVector(faces)
+        )
 
-        # Create Open3D mesh
-        mesh = o3d.geometry.TriangleMesh()
-        mesh.vertices = o3d.utility.Vector3dVector(vertices)
-        mesh.triangles = o3d.utility.Vector3iVector(faces)
-
-        # Optionally, add vertex colors
-        colors = rgb.reshape(-1, 3) / 255.0  # Normalize to [0, 1]
+        # Add vertex color from RGB
+        colors = self.rgb.reshape(-1, 3) / 255.0
         mesh.vertex_colors = o3d.utility.Vector3dVector(colors)
-
-        # Compute vertex normals for shading
         mesh.compute_vertex_normals()
 
-        u = x / (w - 1)
-        v = y / (h - 1)
-        uvs = np.vstack((u, v)).T
+        return mesh
 
-        mesh.textures = [o3d.geometry.Image(rgb)]
-        mesh.triangle_uvs = o3d.utility.Vector2dVector(uvs)
-        mesh.triangle_material_ids = o3d.utility.IntVector([0] * len(faces))
+    def generate_building_meshes(self):
+        building_meshes = []
+        unique_ids = np.unique(self.mask)
+        unique_ids = unique_ids[unique_ids > 0]
 
-        # Visualize the mesh with shading
-        o3d.visualization.draw_geometries([mesh], mesh_show_back_face=True)
+        h, w = self.dtm.shape
+
+        for bid in unique_ids:
+            region = (self.mask == bid).astype(np.uint8) * 255
+
+            # Find all contours (external + internal holes if any)
+            contours, _ = cv2.findContours(region, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+            for contour in contours:
+                if len(contour) < 3:
+                    continue
+
+                # Smooth contour while keeping shape — this reduces jagged edges
+                epsilon = 1.0  # adjust if needed
+                approx = cv2.approxPolyDP(contour, epsilon, True)
+                if len(approx) < 3:
+                    continue
+
+                # Get height values
+                mask_poly = np.zeros_like(region, dtype=np.uint8)
+                cv2.drawContours(mask_poly, [approx], -1, 255, thickness=-1)
+
+                building_area = (mask_poly == 255)
+                if np.sum(building_area) < 10:
+                    continue
+
+                base_height = np.mean(self.dtm[building_area]) * self.height_scale
+                height_diff = self.dsm[building_area] - self.dtm[building_area]
+                height = np.median(height_diff) * self.height_scale
+                height = max(0.005, min(height, 0.05))
+
+                # Prepare footprint (normalize coordinates)
+                footprint = approx[:, 0, :].astype(np.float32)
+                footprint[:, 0] /= w
+                footprint[:, 1] /= h
+
+                bottom = np.column_stack((footprint, np.full(len(footprint), base_height)))
+                top = np.column_stack((footprint, np.full(len(footprint), base_height + height)))
+                vertices = np.vstack((bottom, top))
+
+                faces = []
+                path = Path(footprint)
+
+                tri = Delaunay(footprint)
+                for tri_indices in tri.simplices:
+                    pts = footprint[tri_indices]
+                    centroid = np.mean(pts, axis=0)
+
+                    if path.contains_point(centroid):  # Keep only triangles inside the footprint
+                        # Bottom face (CCW)
+                        faces.append([tri_indices[0], tri_indices[1], tri_indices[2]])
+                        # Top face (CW)
+                        offset = len(footprint)
+                        faces.append([
+                            tri_indices[2] + offset,
+                            tri_indices[1] + offset,
+                            tri_indices[0] + offset
+                        ])
+
+                # Side walls
+                for i in range(len(footprint)):
+                    i_next = (i + 1) % len(footprint)
+                    b1, b2 = i, i_next
+                    t1, t2 = b1 + len(footprint), b2 + len(footprint)
+                    faces += [
+                        [b1, b2, t2],
+                        [b1, t2, t1]
+                    ]
+
+                mesh = o3d.geometry.TriangleMesh(
+                    vertices=o3d.utility.Vector3dVector(vertices),
+                    triangles=o3d.utility.Vector3iVector(faces)
+                )
+
+                color_intensity = min(1.0, height * 10)
+                mesh.paint_uniform_color([0.8, 0.8, color_intensity])
+                mesh.compute_vertex_normals()
+                building_meshes.append(mesh)
+
+        return building_meshes
 
 
-if __name__ == "__main__":
-    mesh_generator = MeshGenerator("src/3dmodeling/test_images/rgb.png", "src/3dmodeling/test_images/dsm.png", 
-                                  "src/3dmodeling/test_images/output_dtm.png", "src/3dmodeling/test_images/labeled_mask.png")
-    mesh = mesh_generator.generate_terrain_mesh()
+    def visualize(self):
+        self.load_data()
+        terrain = self.generate_terrain_mesh()
+        buildings = self.generate_building_meshes()
+        o3d.visualization.draw_geometries([terrain] + buildings, mesh_show_back_face=True)

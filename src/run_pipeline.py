@@ -42,7 +42,7 @@ if __name__ == "__main__":
 
         # Generate Mesh
         mesh_generator = MeshGenerator(IMAGE_PATH, "temp/dsm.png", "temp/dtm.png", "temp/labeled_mask.png")
-        mesh_generator.generate_terrain_mesh()
+        mesh_generator.visualize()
     finally:
         # Delete the src/temp folder
         shutil.rmtree("temp")
