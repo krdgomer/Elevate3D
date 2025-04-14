@@ -1,8 +1,3 @@
-import cv2
-import numpy as np
-import rasterio
-from rasterio.transform import from_origin
-from bulldozer.pipeline.bulldozer_pipeline import dsm_to_dtm
 from PIL import Image
 
 def generate_dtm(dsm_path, output_path):
