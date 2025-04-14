@@ -3,15 +3,18 @@ import numpy as np
 import open3d as o3d
 from scipy.spatial import Delaunay
 from matplotlib.path import Path
+import copy
 
 
 class MeshGenerator():
-    def __init__(self, rgb_path, dsm_path, dtm_path, masks_path, height_scale=0.1):
+    def __init__(self, rgb_path, dsm_path, dtm_path, masks_path, tree_boxes, height_scale=0.1):
         self.rgb_path = rgb_path
         self.dsm_path = dsm_path
         self.dtm_path = dtm_path    
         self.masks_path = masks_path
         self.height_scale = height_scale  # Scale factor to reduce building heights
+        self.tree_boxes = tree_boxes  # Tree bounding boxes from DeepForest
+        self.tree_model_path = "src/3d/Tree.obj"
 
     def load_data(self):
         self.rgb = cv2.cvtColor(cv2.imread(self.rgb_path), cv2.COLOR_BGR2RGB)
@@ -20,6 +23,60 @@ class MeshGenerator():
         self.mask = cv2.imread(self.masks_path, cv2.IMREAD_UNCHANGED)
 
         assert self.rgb.shape[:2] == self.dsm.shape == self.dtm.shape == self.mask.shape, "Image dimensions must match!"
+
+    def generate_tree_meshes(self, tree_boxes_df, tree_model_path, fixed_height=0.05):
+        # Load the tree model
+        tree_model = o3d.io.read_triangle_mesh(tree_model_path)
+        tree_model.compute_vertex_normals()
+        tree_model.compute_triangle_normals()
+
+
+        # Rotate +90° around X to make it upright
+        R = tree_model.get_rotation_matrix_from_xyz((np.pi / 2, 0, 0))
+        tree_model.rotate(R, center=tree_model.get_center())
+        
+        # Get the initial bounding box
+        bbox = tree_model.get_axis_aligned_bounding_box()
+        
+        # Calculate the offset to move the bottom of the tree to the origin
+        tree_offset = -bbox.get_min_bound()[2]  # Z is up
+        
+        # Move bottom to origin
+        tree_model.translate((0, 0, tree_offset))
+
+        # Center in X and Y
+        center_xy_offset = tree_model.get_axis_aligned_bounding_box().get_center()
+        tree_model.translate((-center_xy_offset[0], -center_xy_offset[1], 0))
+        
+        # Scale the tree to the desired height
+        bbox = tree_model.get_axis_aligned_bounding_box()
+        scale_factor = fixed_height / bbox.get_extent()[2]  # Z is up
+        tree_model.scale(scale_factor, center=(0, 0, 0))  # Scale from the bottom
+
+        tree_meshes = []
+        h, w = self.dtm.shape
+
+        for _, row in tree_boxes_df.iterrows():
+            center_x = int((row["xmin"] + row["xmax"]) / 2)
+            center_y = int((row["ymin"] + row["ymax"]) / 2)
+
+            if center_x >= w or center_y >= h:
+                continue
+
+            # Get terrain height at this point
+            base_z = self.dtm[center_y, center_x] * self.height_scale
+
+            # Convert to normalized (0–1) mesh coordinates
+            nx = center_x / w
+            ny = center_y / h
+
+            # Clone, translate, and store the new tree mesh
+            tree = copy.deepcopy(tree_model).translate((nx, ny, base_z))
+            tree_meshes.append(tree)
+
+        return tree_meshes
+
+
 
     def generate_terrain_mesh(self):
         h, w = self.dtm.shape
@@ -142,4 +199,9 @@ class MeshGenerator():
         self.load_data()
         terrain = self.generate_terrain_mesh()
         buildings = self.generate_building_meshes()
-        o3d.visualization.draw_geometries([terrain] + buildings, mesh_show_back_face=True)
+
+        if self.tree_boxes is not None:
+            trees = self.generate_tree_meshes(self.tree_boxes,self.tree_model_path)
+
+
+        o3d.visualization.draw_geometries([terrain] + buildings + trees, mesh_show_back_face=True,)

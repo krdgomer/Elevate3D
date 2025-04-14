@@ -6,6 +6,7 @@ from pipeline.predict_dsm import predict_dsm
 from models.dsm2dtm import generate_dtm
 from pipeline.predict_mask import predict_mask
 from PIL import Image
+from pipeline.deepforest import run_deepforest
 
 if __name__ == "__main__":
     # Argument parser
@@ -40,8 +41,10 @@ if __name__ == "__main__":
         # Generate Mask
         predict_mask(IMAGE_PATH, "temp/labeled_mask.png")
 
+        tree_boxes = run_deepforest(os.path.abspath(IMAGE_PATH))
+
         # Generate Mesh
-        mesh_generator = MeshGenerator(IMAGE_PATH, "temp/dsm.png", "temp/dtm.png", "temp/labeled_mask.png")
+        mesh_generator = MeshGenerator(IMAGE_PATH, "temp/dsm.png", "temp/dtm.png", "temp/labeled_mask.png",tree_boxes)
         mesh_generator.visualize()
     finally:
         # Delete the src/temp folder
