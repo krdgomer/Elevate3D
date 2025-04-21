@@ -3,7 +3,14 @@ from deepforest import get_data
 from deepforest.visualize import plot_results
 
 def run_deepforest(image_path):
+    """Runs the DeepForest model on the provided image. DeepForest is a python package for training and predicting ecological objects in airborne imagery.
 
+    Args:
+        image_path (string): Path to the image file.
+
+    Returns:
+        boxes: a list of bounding boxes predicted by the model.
+    """
     print("Running DeepForest...")
     model = main.deepforest()
 
