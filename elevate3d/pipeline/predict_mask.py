@@ -1,3 +1,4 @@
+from huggingface_hub import hf_hub_download
 import torch
 import torchvision.transforms as T
 import cv2
@@ -43,18 +44,25 @@ def predict_mask(input_image):
     """
     print("Predicting mask...")
 
-    # Load the trained model
+    # Load model
     model = get_model()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
+    # Download from Hugging Face (caches automatically)
+    weights_path = hf_hub_download(
+        repo_id="krdgomer/elevate3d-weights",
+        filename="maskrcnn_weights.pth",
+        cache_dir="elevate3d/hf_cache"
+    )
+
     # Load weights
-    model.load_state_dict(torch.load("elevate3d/weights/maskrcnn_weights.pth", map_location=device))
+    model.load_state_dict(torch.load(weights_path, map_location=device))
     model.eval()
 
-    # Preprocess image
+    # Preprocess
     transform = T.Compose([T.ToTensor()])
-    input_tensor = transform(input_image).unsqueeze(0)
+    input_tensor = transform(input_image).unsqueeze(0).to(device)
 
     with torch.no_grad():
         predictions = model(input_tensor)

@@ -1,13 +1,19 @@
 import torch
-from PIL import Image
 import numpy as np
 from models.generator import Generator
-import os
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
-import cv2
+from huggingface_hub import hf_hub_download
 
-def load_generator(model_path, device="cpu"):
+
+def load_generator(model_path=None, device="cpu"):
+    if model_path is None:
+        model_path = hf_hub_download(
+            repo_id="krdgomer/elevate3d-weights",
+            filename="gen.pth.tar",
+            cache_dir="elevate3d/hf_cache"  # Optional: keeps files in a project dir
+        )
+
     print(f"Loading generator model from {model_path}...")
     
     generator = Generator().to(device)  
@@ -20,6 +26,7 @@ def load_generator(model_path, device="cpu"):
 
     generator.eval()  
     return generator
+
     
 
 def normalize_safe(array):
@@ -44,7 +51,7 @@ def predict_dsm(input_img):
     """
     print("Predicting DSM...")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = load_generator("elevate3d/weights/gen.pth.tar", device)
+    model = load_generator(device=device)
     model.eval()
 
     print("Loaded Generator Model")

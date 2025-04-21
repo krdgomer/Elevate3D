@@ -6,3 +6,4 @@ torch
 albumentations
 deepforest
 scikit-image
+huggingface_hub
