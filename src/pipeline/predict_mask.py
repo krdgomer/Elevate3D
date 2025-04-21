@@ -32,7 +32,7 @@ def clean_mask(mask):
     cv2.fillPoly(clean, [approx], 255)
     return clean // 255  # convert back to binary
 
-def predict_mask(image_path, output_path):
+def predict_mask(input_image):
     print("Predicting mask...")
 
     # Load the trained model
@@ -41,14 +41,12 @@ def predict_mask(image_path, output_path):
     model.to(device)
 
     # Load weights
-    model.load_state_dict(torch.load("src/models/weights/maskrcnn_weights.pth", map_location=device))
+    model.load_state_dict(torch.load("src/weights/maskrcnn_weights.pth", map_location=device))
     model.eval()
 
-    # Load and preprocess image
-    image = cv2.imread(image_path)
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    # Preprocess image
     transform = T.Compose([T.ToTensor()])
-    input_tensor = transform(image).unsqueeze(0)
+    input_tensor = transform(input_image).unsqueeze(0)
 
     with torch.no_grad():
         predictions = model(input_tensor)
@@ -57,7 +55,7 @@ def predict_mask(image_path, output_path):
     scores = predictions[0]['scores'].detach().cpu().numpy()
     threshold = 0.5
 
-    labeled_mask = np.zeros((image.shape[0], image.shape[1]), dtype=np.uint8)
+    labeled_mask = np.zeros((input_image.shape[0], input_image.shape[1]), dtype=np.uint8)
     label_value = 255
 
     for i in range(len(masks)):
@@ -75,6 +73,4 @@ def predict_mask(image_path, output_path):
             labeled_mask[instance_mask > 0] = label_value
             label_value = max(1, label_value - 1)
 
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    cv2.imwrite(output_path, labeled_mask)
-    print(f"Labeled instance mask saved to {output_path}")
+    return labeled_mask

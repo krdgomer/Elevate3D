@@ -7,22 +7,15 @@ import copy
 
 
 class MeshGenerator():
-    def __init__(self, rgb_path, dsm_path, dtm_path, masks_path, tree_boxes, height_scale=0.1):
-        self.rgb_path = rgb_path
-        self.dsm_path = dsm_path
-        self.dtm_path = dtm_path    
-        self.masks_path = masks_path
+    def __init__(self, rgb, dsm, dtm, mask, tree_boxes, height_scale=0.1):
+        self.rgb = cv2.cvtColor(rgb, cv2.COLOR_BGR2RGB)
+        self.dsm = dsm.astype(np.float32)  # Ensure float32
+        self.dtm = dtm.astype(np.float32)  # Ensure float32
+        self.mask = mask  # Use as-is
+        assert self.rgb.shape[:2] == self.dsm.shape == self.dtm.shape == self.mask.shape, "Image dimensions must match!"
         self.height_scale = height_scale  # Scale factor to reduce building heights
         self.tree_boxes = tree_boxes  # Tree bounding boxes from DeepForest
-        self.tree_model_path = "src/3d/Tree.obj"
-
-    def load_data(self):
-        self.rgb = cv2.cvtColor(cv2.imread(self.rgb_path), cv2.COLOR_BGR2RGB)
-        self.dsm = cv2.imread(self.dsm_path, cv2.IMREAD_GRAYSCALE).astype(np.float32)
-        self.dtm = cv2.imread(self.dtm_path, cv2.IMREAD_GRAYSCALE).astype(np.float32)
-        self.mask = cv2.imread(self.masks_path, cv2.IMREAD_UNCHANGED)
-
-        assert self.rgb.shape[:2] == self.dsm.shape == self.dtm.shape == self.mask.shape, "Image dimensions must match!"
+        self.tree_model_path = "src/assets/tree_model/Tree.obj"
 
     def generate_tree_meshes(self, tree_boxes_df, tree_model_path, fixed_height=0.05):
         # Load the tree model
@@ -196,7 +189,6 @@ class MeshGenerator():
 
 
     def visualize(self):
-        self.load_data()
         terrain = self.generate_terrain_mesh()
         buildings = self.generate_building_meshes()
 

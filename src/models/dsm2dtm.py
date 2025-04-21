@@ -1,11 +1,16 @@
-from PIL import Image
+import numpy as np
 
-def generate_dtm(dsm_path, output_path):
-    # Load DSM image
-    dsm = Image.open(dsm_path)
-
-    # Create a black image with same size
-    dtm = Image.new("L", dsm.size, 0)
-
-    # Save as PNG
-    dtm.save(output_path)
+def generate_dtm(dsm):
+    """
+    Generate a blank DTM from an in-memory DSM (OpenCV format).
+    
+    Args:
+        dsm_cv2: DSM image as OpenCV format (NumPy array, uint8, shape HxW)
+        
+    Returns:
+        dtm_cv2: DTM image as OpenCV format (NumPy array, uint8, same shape as DSM)
+    """
+    # Create a black image with same dimensions as DSM
+    dtm_cv2 = np.zeros_like(dsm, dtype=np.uint8)
+    
+    return dtm_cv2
