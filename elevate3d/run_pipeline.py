@@ -7,19 +7,18 @@ from pipeline.predict_mask import predict_mask
 from pipeline.deepforest import run_deepforest
 import cv2
 
-if __name__ == "__main__":
-    # Argument parser
-    parser = argparse.ArgumentParser(description="Training Configuration")
-    parser.add_argument(
-        "--image_path",
-        type=str,
-        required=True,
-        help="Image path",
-    )
+def run_pipeline(image_path):
+    """
+    Run the entire pipeline for 3D reconstruction from a single RGB image.
 
-    args = parser.parse_args()
+    Args:
+        image_path (str): Path to the input RGB image.
 
-    IMAGE_PATH = args.image_path
+    Raises:
+        ValueError: If the image cannot be loaded or if its dimensions are not 512x512 pixels.
+    """
+    
+    IMAGE_PATH = image_path
 
     #Load image into memory
     rgb_image = cv2.imread(IMAGE_PATH)
