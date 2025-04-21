@@ -1,11 +1,9 @@
 import os
-import shutil
 import argparse
 from pipeline.generate_mesh import MeshGenerator
 from pipeline.predict_dsm import predict_dsm
 from models.dsm2dtm import generate_dtm
 from pipeline.predict_mask import predict_mask
-from PIL import Image
 from pipeline.deepforest import run_deepforest
 import cv2
 

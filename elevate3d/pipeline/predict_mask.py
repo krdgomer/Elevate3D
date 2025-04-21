@@ -49,7 +49,7 @@ def predict_mask(input_image):
     model.to(device)
 
     # Load weights
-    model.load_state_dict(torch.load("src/weights/maskrcnn_weights.pth", map_location=device))
+    model.load_state_dict(torch.load("elevate3d/weights/maskrcnn_weights.pth", map_location=device))
     model.eval()
 
     # Preprocess image

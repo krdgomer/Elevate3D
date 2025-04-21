@@ -44,7 +44,7 @@ def predict_dsm(input_img):
     """
     print("Predicting DSM...")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = load_generator("src/weights/gen.pth.tar", device)
+    model = load_generator("elevate3d/weights/gen.pth.tar", device)
     model.eval()
 
     print("Loaded Generator Model")

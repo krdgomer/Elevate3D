@@ -119,14 +119,3 @@ class Generator(nn.Module):
         final_output = self.final_up(torch.cat([up7, d1], dim=1))  # Shape: (B, C, H, W)
 
         return final_output
-
-
-def test():
-    x = torch.randn((1, 1, 512, 512))
-    model = Generator(in_channels=1, features=64)
-    preds = model(x)
-    print(preds.shape)
-
-
-if __name__ == "__main__":
-    test()
