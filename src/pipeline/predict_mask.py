@@ -33,6 +33,14 @@ def clean_mask(mask):
     return clean // 255  # convert back to binary
 
 def predict_mask(input_image):
+    """Predict the mask from an input image using a pre-trained Mask R-CNN model.
+
+    Args:
+        input_image : Input image as a NumPy array (H x W x C, dtype: uint8).
+
+    Returns:
+        labeled_mask: Labeled mask as a NumPy array (H x W, dtype: uint8) with unique labels for each building.
+    """
     print("Predicting mask...")
 
     # Load the trained model
