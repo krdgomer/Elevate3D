@@ -21,10 +21,17 @@ setup(
         'deepforest',
         'scikit-image',
         'huggingface_hub'
+        'flask',
+        'trimesh'
             ],
     classifiers=[
         'Programming Language :: Python :: 3',
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
     ],
+    entry_points={
+        'console_scripts': [
+            'elevate3d-run=elevate3d.app:run_app',
+        ],
+    },
     python_requires='>=3.8')
