@@ -3,7 +3,7 @@ import torch
 import torchvision.transforms as T
 import cv2
 import numpy as np
-from models.maskrcnn import get_model
+from elevate3d.models.maskrcnn import get_model
 from skimage.measure import label
 import os
 
@@ -53,7 +53,7 @@ def predict_mask(input_image):
     weights_path = hf_hub_download(
         repo_id="krdgomer/elevate3d-weights",
         filename="maskrcnn_weights.pth",
-        cache_dir="elevate3d/hf_cache"
+        cache_dir="hf_cache"
     )
 
     # Load weights
