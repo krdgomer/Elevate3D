@@ -1,3 +1,4 @@
+import os
 import cv2
 import numpy as np
 import open3d as o3d
@@ -15,7 +16,7 @@ class MeshGenerator():
         assert self.rgb.shape[:2] == self.dsm.shape == self.dtm.shape == self.mask.shape, "Image dimensions must match!"
         self.height_scale = height_scale  # Scale factor to reduce building heights
         self.tree_boxes = tree_boxes  # Tree bounding boxes from DeepForest
-        self.tree_model_path = "src/assets/tree_model/Tree.obj"
+        self.tree_model_path = "assets/tree_model/Tree.obj"
 
     def generate_tree_meshes(self, tree_boxes_df, tree_model_path, fixed_height=0.05):
         # Load the tree model
@@ -118,8 +119,8 @@ class MeshGenerator():
                 if len(contour) < 3:
                     continue
 
-                # Smooth contour while keeping shape — this reduces jagged edges
-                epsilon = 1.0  # adjust if needed
+                # Smooth contour while keeping shape
+                epsilon = 1.0
                 approx = cv2.approxPolyDP(contour, epsilon, True)
                 if len(approx) < 3:
                     continue
@@ -142,6 +143,7 @@ class MeshGenerator():
                 footprint[:, 0] /= w
                 footprint[:, 1] /= h
 
+                # Create vertices
                 bottom = np.column_stack((footprint, np.full(len(footprint), base_height)))
                 top = np.column_stack((footprint, np.full(len(footprint), base_height + height)))
                 vertices = np.vstack((bottom, top))
@@ -149,21 +151,20 @@ class MeshGenerator():
                 faces = []
                 path = Path(footprint)
 
-                tri = Delaunay(footprint)
-                for tri_indices in tri.simplices:
-                    pts = footprint[tri_indices]
-                    centroid = np.mean(pts, axis=0)
-
-                    if path.contains_point(centroid):  # Keep only triangles inside the footprint
-                        # Bottom face (CCW)
-                        faces.append([tri_indices[0], tri_indices[1], tri_indices[2]])
-                        # Top face (CW)
-                        offset = len(footprint)
-                        faces.append([
-                            tri_indices[2] + offset,
-                            tri_indices[1] + offset,
-                            tri_indices[0] + offset
-                        ])
+                # Create roof using Delaunay triangulation
+                if len(footprint) >= 3:
+                    tri = Delaunay(footprint)
+                    for simplex in tri.simplices:
+                        centroid = np.mean(footprint[simplex], axis=0)
+                        if path.contains_point(centroid):
+                            # Bottom face
+                            faces.append([simplex[0], simplex[1], simplex[2]])
+                            # Top face (with offset)
+                            faces.append([
+                                simplex[2] + len(footprint),
+                                simplex[1] + len(footprint),
+                                simplex[0] + len(footprint)
+                            ])
 
                 # Side walls
                 for i in range(len(footprint)):
@@ -171,15 +172,17 @@ class MeshGenerator():
                     b1, b2 = i, i_next
                     t1, t2 = b1 + len(footprint), b2 + len(footprint)
                     faces += [
-                        [b1, b2, t2],
-                        [b1, t2, t1]
+                        [b1, b2, t2],  # First triangle of the wall
+                        [b1, t2, t1]   # Second triangle of the wall
                     ]
 
+                # Create the mesh
                 mesh = o3d.geometry.TriangleMesh(
                     vertices=o3d.utility.Vector3dVector(vertices),
                     triangles=o3d.utility.Vector3iVector(faces)
                 )
 
+                # Assign color based on height
                 color_intensity = min(1.0, height * 10)
                 mesh.paint_uniform_color([0.8, 0.8, color_intensity])
                 mesh.compute_vertex_normals()
@@ -188,12 +191,40 @@ class MeshGenerator():
         return building_meshes
 
 
-    def visualize(self):
+
+    def visualize(self, save_path=None):
         terrain = self.generate_terrain_mesh()
         buildings = self.generate_building_meshes()
+        trees = self.generate_tree_meshes(self.tree_boxes, self.tree_model_path) if self.tree_boxes is not None else []
 
-        if self.tree_boxes is not None:
-            trees = self.generate_tree_meshes(self.tree_boxes,self.tree_model_path)
+        combined_mesh = [terrain] + buildings + trees
 
-
-        o3d.visualization.draw_geometries([terrain] + buildings + trees, mesh_show_back_face=True,)
+        if save_path:
+            try:
+                import trimesh
+                # Convert all Open3D meshes to trimesh and combine
+                tri_meshes = []
+                for o3d_mesh in combined_mesh:
+                    tri_mesh = trimesh.Trimesh(
+                        vertices=np.asarray(o3d_mesh.vertices),
+                        faces=np.asarray(o3d_mesh.triangles),
+                        vertex_colors=np.asarray(o3d_mesh.vertex_colors)
+                    )
+                    tri_meshes.append(tri_mesh)
+                
+                # Combine all meshes
+                scene = trimesh.Scene()
+                for mesh in tri_meshes:
+                    scene.add_geometry(mesh)
+                
+                # Export as GLB
+                scene.export(save_path)
+                return save_path
+                
+            except Exception as e:
+                print(f"Error exporting with trimesh: {str(e)}")
+                # Fall back to Open3D export
+                return self.visualize(save_path)
+        else:
+            o3d.visualization.draw_geometries(combined_mesh, mesh_show_back_face=True)
+            return None
