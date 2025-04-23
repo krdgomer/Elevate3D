@@ -4,3 +4,4 @@ hf_cache
 *.rar
 dist
 build
+elevate3d.egg-info
