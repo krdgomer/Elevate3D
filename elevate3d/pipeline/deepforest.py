@@ -18,5 +18,4 @@ def run_deepforest(image_path):
 
     image_path = get_data(image_path)
     boxes = model.predict_image(path=image_path) 
-    plot_results(boxes)
     return boxes
