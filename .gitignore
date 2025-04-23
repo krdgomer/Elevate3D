@@ -2,3 +2,5 @@ weights
 __pycache__
 hf_cache
 *.rar
+dist
+build
