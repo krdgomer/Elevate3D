@@ -7,3 +7,5 @@ albumentations
 deepforest
 scikit-image
 huggingface_hub
+flask
+trimesh
