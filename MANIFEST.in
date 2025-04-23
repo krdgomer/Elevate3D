@@ -1,4 +1,5 @@
 include README.md
 include LICENSE
 recursive-include elevate3d/assets *
-recursive-include elevate3d/web/templates *
+recursive-include elevate3d/templates *
+recursive-include elevate3d/static *
