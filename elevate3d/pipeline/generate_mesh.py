@@ -1,26 +1,71 @@
 import os
+import traceback
 import cv2
 import numpy as np
 import open3d as o3d
 from scipy.spatial import Delaunay
-from matplotlib.path import Path
+from matplotlib.path import Path as GeoPath
 import copy
+from pathlib import Path
 
 
 class MeshGenerator():
     def __init__(self, rgb, dsm, dtm, mask, tree_boxes, height_scale=0.1):
+        print("1")
         self.rgb = cv2.cvtColor(rgb, cv2.COLOR_BGR2RGB)
-        self.dsm = dsm.astype(np.float32)  # Ensure float32
-        self.dtm = dtm.astype(np.float32)  # Ensure float32
-        self.mask = mask  # Use as-is
+        self.dsm = dsm.astype(np.float32)
+        self.dtm = dtm.astype(np.float32)
+        self.mask = mask
         assert self.rgb.shape[:2] == self.dsm.shape == self.dtm.shape == self.mask.shape, "Image dimensions must match!"
-        self.height_scale = height_scale  # Scale factor to reduce building heights
-        self.tree_boxes = tree_boxes  # Tree bounding boxes from DeepForest
-        self.tree_model_path = "assets/tree_model/Tree.obj"
+        self.height_scale = height_scale
+        self.tree_boxes = tree_boxes
+        # Initialize tree assets
+        print("2")
+        self.tree_model_path = self._setup_tree_assets()
+
+    def _setup_tree_assets(self):
+        """Download and setup tree assets from Hugging Face"""
+        from huggingface_hub import hf_hub_download
+        import warnings
+
+        # Try downloading from Hugging Face Hub first
+        try:
+            # Using huggingface_hub library (preferred)
+            model_path = hf_hub_download(
+                repo_id="krdgomer/elevate3d-weights",
+                filename="Tree.obj",
+                cache_dir="hf_cache",
+                force_download=True
+            )
+            return model_path
+        except Exception as e:
+            warnings.warn(f"HF Hub download failed: {str(e)}. Trying direct download...")
+
 
     def generate_tree_meshes(self, tree_boxes_df, tree_model_path, fixed_height=0.05):
         # Load the tree model
-        tree_model = o3d.io.read_triangle_mesh(tree_model_path)
+        tree_path = str(Path(tree_model_path).absolute()) if tree_model_path else None
+        
+        try:
+            # Safely load the tree model
+            if not tree_path or not os.path.exists(tree_path):
+                raise FileNotFoundError(f"Tree model not found at {tree_path}")
+            
+            print("Loading tree model...")
+            tree_model = o3d.io.read_triangle_mesh(tree_path)
+            
+            if not tree_model.has_vertices():
+                raise ValueError("Loaded tree model has no vertices")
+                
+            print("Tree model loaded successfully")
+        except Exception as e:
+            print(f"Error loading tree model: {e}")
+            traceback.print_exc()
+            return [self._create_fallback_tree()] * len(tree_boxes_df) if tree_boxes_df is not None else []
+
+
+        
+        
         tree_model.compute_vertex_normals()
         tree_model.compute_triangle_normals()
 
@@ -99,7 +144,6 @@ class MeshGenerator():
         colors = self.rgb.reshape(-1, 3) / 255.0
         mesh.vertex_colors = o3d.utility.Vector3dVector(colors)
         mesh.compute_vertex_normals()
-
         return mesh
 
     def generate_building_meshes(self):
@@ -149,7 +193,7 @@ class MeshGenerator():
                 vertices = np.vstack((bottom, top))
 
                 faces = []
-                path = Path(footprint)
+                path = GeoPath(footprint)
 
                 # Create roof using Delaunay triangulation
                 if len(footprint) >= 3:

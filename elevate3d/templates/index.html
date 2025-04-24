@@ -38,23 +38,22 @@
     
     <div id="model-container"></div>
 
+    <!-- Three.js and dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
     
     <script>
-        // Initialize Three.js scene with better lighting
+        // Initialize Three.js scene
         const container = document.getElementById('model-container');
         const scene = new THREE.Scene();
-        
-        // Improved lighting setup
         scene.background = new THREE.Color(0xf0f0f0);
         
-        // Main camera
+        // Camera setup
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.set(0, 1.5, 1.5);
         
-        // Renderer with better quality settings
+        // Renderer with enhanced settings
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
@@ -63,7 +62,7 @@
         renderer.toneMappingExposure = 1.0;
         container.appendChild(renderer.domElement);
         
-        // Enhanced lighting
+        // Enhanced lighting setup
         const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
         scene.add(ambientLight);
         
@@ -103,10 +102,13 @@
         }
         animate();
         
-        // File upload and processing
+        // File upload and processing - Fixed indentation and error handling
         document.getElementById('upload-btn').addEventListener('click', async () => {
             const fileInput = document.getElementById('file-input');
-            if (!fileInput.files.length) return;
+            if (!fileInput.files.length) {
+                alert('Please select an image file first');
+                return;
+            }
             
             const file = fileInput.files[0];
             const formData = new FormData();
@@ -117,27 +119,37 @@
             try {
                 const response = await fetch('/upload', {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json'
+                    }
                 });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    loadModel(data.model_url);
-                } else {
-                    alert(`Error: ${data.error}`);
+
+                // Check response status first
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+                    throw new Error(error.message || error.error || 'Server error');
                 }
+
+                // Then parse JSON
+                const data = await response.json();
+                if (!data.model_url) {
+                    throw new Error('Invalid response from server');
+                }
+
+                loadModel(data.model_url);
             } catch (error) {
+                console.error('Upload error:', error);
                 alert(`Error: ${error.message}`);
             } finally {
                 document.getElementById('loading').style.display = 'none';
             }
         });
         
-        // Improved model loading function
+        // Model loading function with improved error handling
         function loadModel(url) {
-            // Clear previous model
-            while(scene.children.length > 4) { // Keep lights and grid
+            // Clear previous model (keep first 4 elements - lights and grid)
+            while (scene.children.length > 4) {
                 scene.remove(scene.children[4]);
             }
             
@@ -148,16 +160,18 @@
                 (gltf) => {
                     const model = gltf.scene;
                     
-                    // Fix rotation (rotate -90° around X axis)
+                    // Fix model rotation (-90° around X axis)
                     model.rotation.x = -Math.PI / 2;
                     
-                    // Enable double-sided rendering for all materials
+                    // Enable double-sided rendering and improve materials
                     model.traverse((child) => {
                         if (child.isMesh) {
                             child.material.side = THREE.DoubleSide;
                             if (child.material.map) {
                                 child.material.map.encoding = THREE.sRGBEncoding;
                             }
+                            // Enhance material appearance
+                            child.material.needsUpdate = true;
                         }
                     });
                     
@@ -176,15 +190,13 @@
                     // Reset camera position
                     camera.position.set(0, 1.5, 1.5);
                     controls.reset();
-                    
-                    console.log('Model successfully loaded');
                 },
                 (xhr) => {
-                    console.log(`${(xhr.loaded / xhr.total * 100).toFixed(2)}% loaded`);
+                    console.log(`Loading: ${(xhr.loaded / xhr.total * 100).toFixed(1)}%`);
                 },
                 (error) => {
-                    console.error('Error loading model:', error);
-                    alert('Failed to load model. Check console for details.');
+                    console.error('Model loading error:', error);
+                    alert('Failed to load model. Please check console for details.');
                 }
             );
         }

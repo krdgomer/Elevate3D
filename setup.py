@@ -20,9 +20,11 @@ setup(
         'albumentations',
         'deepforest',
         'scikit-image',
-        'huggingface_hub'
+        'huggingface_hub',
         'flask',
-        'trimesh'
+        'trimesh',
+        'matplotlib',
+        'scipy'
             ],
     classifiers=[
         'Programming Language :: Python :: 3',
