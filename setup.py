@@ -6,7 +6,7 @@ setup(
     author='Ömer Can Karadağ',
     author_email='krdg.omercan@hotmail.com',
     description='3D terrain and structure reconstruction from single RGB images',
-    long_description=open('README.md').read(),
+    long_description=open('README_pypi.md').read(),
     long_description_content_type='text/markdown',
     url='https://github.com/krdgomer/elevate3d',
     packages=find_packages(),
