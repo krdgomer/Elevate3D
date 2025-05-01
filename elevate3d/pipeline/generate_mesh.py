@@ -259,30 +259,35 @@ class MeshGenerator():
         terrain = self.generate_terrain_mesh()
         buildings = self.generate_building_meshes()
         trees = self.generate_tree_meshes(self.tree_boxes, self.tree_model_path) if self.tree_boxes is not None else []
-        
+
         combined_mesh = [terrain] + buildings + trees
 
         if save_path:
             try:
-                # Create directory if needed
-                os.makedirs(os.path.dirname(save_path), exist_ok=True)
+                import trimesh
+                # Convert all Open3D meshes to trimesh and combine
+                tri_meshes = []
+                for o3d_mesh in combined_mesh:
+                    tri_mesh = trimesh.Trimesh(
+                        vertices=np.asarray(o3d_mesh.vertices),
+                        faces=np.asarray(o3d_mesh.triangles),
+                        vertex_colors=np.asarray(o3d_mesh.vertex_colors)
+                    )
+                    tri_meshes.append(tri_mesh)
                 
-                # Export as GLB with textures
-                o3d.io.write_triangle_mesh(
-                    save_path,
-                    combined_mesh[0] if len(combined_mesh) == 1 else combined_mesh,
-                    write_vertex_colors=True,
-                    write_triangle_uvs=True
-                )
+                # Combine all meshes
+                scene = trimesh.Scene()
+                for mesh in tri_meshes:
+                    scene.add_geometry(mesh)
+                
+                # Export as GLB
+                scene.export(save_path)
                 return save_path
+                
             except Exception as e:
-                print(f"Error saving model: {e}")
-                return None
+                print(f"Error exporting with trimesh: {str(e)}")
+                # Fall back to Open3D export
+                return self.visualize(save_path)
         else:
-            o3d.visualization.draw_geometries(
-                combined_mesh,
-                mesh_show_back_face=True,
-                mesh_show_wireframe=False,
-                point_show_normal=True,
-            )
+            o3d.visualization.draw_geometries(combined_mesh, mesh_show_back_face=True)
             return None
