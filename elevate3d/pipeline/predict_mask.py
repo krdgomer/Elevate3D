@@ -4,8 +4,6 @@ import torchvision.transforms as T
 import cv2
 import numpy as np
 from elevate3d.models.maskrcnn import get_model
-from skimage.measure import label
-import os
 from torchvision.transforms import functional as F
 
 def post_process(mask):
@@ -69,4 +67,21 @@ def predict_mask(input_image):
     # Post-process EACH mask individually
     processed_masks = np.array([post_process(mask) for mask in filtered_masks])
 
-    return processed_masks
+    
+    from skimage.measure import label
+
+    # Step 1: Combine all binary masks into one (1 = any building, 0 = background)
+    combined_mask = np.sum(processed_masks, axis=0) > 0  # Shape [512, 512]
+
+    # Step 2: Label connected regions (8-connectivity to detect diagonal touches)
+    instance_segmentation = label(combined_mask, connectivity=2)  # 2 for 8-connectivity
+
+    # Step 3 (Optional): Remove small regions (e.g., <10 pixels)
+    from skimage.morphology import remove_small_objects
+    cleaned_instance_segmentation = remove_small_objects(
+        instance_segmentation, 
+        min_size=10, 
+        connectivity=2
+    )
+
+    return cleaned_instance_segmentation
