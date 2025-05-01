@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='elevate3d',
-    version='0.3.0',
+    version='0.4.0',
     author='Ömer Can Karadağ',
     author_email='krdg.omercan@hotmail.com',
     description='3D terrain and structure reconstruction from single RGB images',
