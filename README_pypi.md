@@ -14,12 +14,12 @@ It’s not production-ready, and results may be inconsistent depending on the in
 
 ##  Features
 
-- ✅ Automatic Building Segmentation (Mask R-CNN)  
-- ✅ Elevation Prediction from RGB (Pix2Pix)  
-- ✅ 3D Mesh Generation (Open3D)  
-- ✅ Tree Detection with DeepForest  
-- ✅ Pretrained Models – No training required  
-- ✅ End-to-End Pipeline – From image to interactive 3D output
+-  Automatic Building Segmentation (Mask R-CNN)  
+-  Elevation Prediction from RGB (Pix2Pix)  
+-  3D Mesh Generation (Open3D)  
+-  Tree Detection with DeepForest  
+-  Pretrained Models – No training required  
+-  End-to-End Pipeline – From image to interactive 3D output
 
 ---
 

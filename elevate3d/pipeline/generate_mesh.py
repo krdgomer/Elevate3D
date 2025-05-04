@@ -260,34 +260,89 @@ class MeshGenerator():
         buildings = self.generate_building_meshes()
         trees = self.generate_tree_meshes(self.tree_boxes, self.tree_model_path) if self.tree_boxes is not None else []
 
-        combined_mesh = [terrain] + buildings + trees
-
         if save_path:
             try:
                 import trimesh
-                # Convert all Open3D meshes to trimesh and combine
-                tri_meshes = []
-                for o3d_mesh in combined_mesh:
-                    tri_mesh = trimesh.Trimesh(
+                from PIL import Image
+                import numpy as np
+                
+                # Create a scene
+                scene = trimesh.Scene()
+                
+                def convert_mesh(o3d_mesh):
+                    mesh = trimesh.Trimesh(
                         vertices=np.asarray(o3d_mesh.vertices),
                         faces=np.asarray(o3d_mesh.triangles),
-                        vertex_colors=np.asarray(o3d_mesh.vertex_colors)
                     )
-                    tri_meshes.append(tri_mesh)
+                    
+                    if o3d_mesh.has_vertex_colors():
+                        mesh.visual.vertex_colors = np.asarray(o3d_mesh.vertex_colors)
+                    
+                    if o3d_mesh.has_triangle_uvs() and o3d_mesh.textures:
+                        texture_array = np.asarray(o3d_mesh.textures[0])
+                        texture_image = Image.fromarray(texture_array)
+                        uv = np.asarray(o3d_mesh.triangle_uvs)
+                        mesh.visual = trimesh.visual.TextureVisuals(
+                            uv=uv,
+                            image=texture_image
+                        )
+                    return mesh
                 
-                # Combine all meshes
-                scene = trimesh.Scene()
-                for mesh in tri_meshes:
-                    scene.add_geometry(mesh)
+                # Add terrain
+                scene.add_geometry(convert_mesh(terrain))
+                
+                # Process buildings with proper material separation
+                for building in buildings:
+                    if building.has_triangle_uvs() and len(building.textures) >= 2:
+                        # Get all triangle indices and material IDs
+                        triangles = np.asarray(building.triangles)
+                        material_ids = np.asarray(building.triangle_material_ids)
+                        uvs = np.asarray(building.triangle_uvs)
+                        
+                        # Ensure we don't exceed array bounds
+                        valid_indices = min(len(triangles), len(material_ids), len(uvs))
+                        triangles = triangles[:valid_indices]
+                        material_ids = material_ids[:valid_indices]
+                        uvs = uvs[:valid_indices]
+                        
+                        # Create walls mesh
+                        wall_mask = (material_ids == 0)
+                        if np.any(wall_mask):
+                            walls = o3d.geometry.TriangleMesh()
+                            walls.vertices = building.vertices
+                            walls.triangles = o3d.utility.Vector3iVector(triangles[wall_mask])
+                            walls.triangle_uvs = o3d.utility.Vector2dVector(uvs[wall_mask])
+                            walls.textures = [self.wall_texture]
+                            scene.add_geometry(convert_mesh(walls))
+                        
+                        # Create roof mesh
+                        roof_mask = (material_ids == 1)
+                        if np.any(roof_mask):
+                            roof = o3d.geometry.TriangleMesh()
+                            roof.vertices = building.vertices
+                            roof.triangles = o3d.utility.Vector3iVector(triangles[roof_mask])
+                            roof.triangle_uvs = o3d.utility.Vector2dVector(uvs[roof_mask])
+                            roof.textures = [self.roof_texture]
+                            scene.add_geometry(convert_mesh(roof))
+                    else:
+                        scene.add_geometry(convert_mesh(building))
+                
+                # Add trees
+                for tree in trees:
+                    scene.add_geometry(convert_mesh(tree))
                 
                 # Export as GLB
                 scene.export(save_path)
                 return save_path
                 
             except Exception as e:
-                print(f"Error exporting with trimesh: {str(e)}")
-                # Fall back to Open3D export
-                return self.visualize(save_path)
+                print(f"Error saving model: {e}")
+                traceback.print_exc()
+                return None
         else:
-            o3d.visualization.draw_geometries(combined_mesh, mesh_show_back_face=True)
+            o3d.visualization.draw_geometries(
+                [terrain] + buildings + trees,
+                mesh_show_back_face=True,
+                mesh_show_wireframe=False
+            )
             return None
