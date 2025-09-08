@@ -3,7 +3,7 @@ import torch
 import torchvision.transforms as T
 import cv2
 import numpy as np
-from elevate3d.models.maskrcnn import get_model
+from elevate3d.core.models import get_maskrcnn_model
 from torchvision.transforms import functional as F
 
 def post_process(mask):
@@ -34,7 +34,7 @@ def predict_mask(input_image):
     print("Predicting mask...")
 
     # Load model
-    model = get_model()
+    model = get_maskrcnn_model()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
 

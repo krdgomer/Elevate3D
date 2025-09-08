@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from elevate3d.models.generator import Generator
+from elevate3d.core.models import Generator
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from huggingface_hub import hf_hub_download
