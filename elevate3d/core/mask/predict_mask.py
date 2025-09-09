@@ -1,10 +1,10 @@
-from huggingface_hub import hf_hub_download
 import torch
 import torchvision.transforms as T
 import cv2
 import numpy as np
 from elevate3d.core.models import get_maskrcnn_model
 from torchvision.transforms import functional as F
+from elevate3d.utils.download_manager import DownloadManager
 
 def post_process(mask):
     mask = (mask > 0).astype(np.uint8) * 255
@@ -38,12 +38,9 @@ def predict_mask(input_image):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
-    # Download from Hugging Face (caches automatically)
-    weights_path = hf_hub_download(
-        repo_id="krdgomer/elevate3d-weights",
-        filename="maskrcnn_weights.pth",
-        cache_dir="hf_cache"
-    )
+    download_manager = DownloadManager()
+    weights_path = download_manager.download_file("maskrcnn_weights.pth")
+
 
     # Load weights
     model.load_state_dict(torch.load(weights_path, map_location=device))

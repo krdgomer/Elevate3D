@@ -14,3 +14,4 @@ def generate_dtm(dsm):
     dtm_cv2 = np.zeros_like(dsm, dtype=np.uint8)
     
     return dtm_cv2
+

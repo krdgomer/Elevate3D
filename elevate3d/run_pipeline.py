@@ -1,10 +1,10 @@
 import os
 import argparse
-from elevate3d.core.generate_mesh import MeshGenerator
-from elevate3d.core.predict_dsm import predict_dsm
-from elevate3d.core.dsm2dtm import generate_dtm
-from elevate3d.core.predict_mask import predict_mask
-from elevate3d.core.deepforest import run_deepforest
+from elevate3d.core.mesh.generate_mesh import MeshGenerator
+from elevate3d.core.dsm.predict_dsm import predict_dsm
+from elevate3d.core.dsm.dsm2dtm import generate_dtm
+from elevate3d.core.mask.predict_mask import predict_mask
+from elevate3d.core.deepforest.deepforest import run_deepforest
 import cv2
 
 

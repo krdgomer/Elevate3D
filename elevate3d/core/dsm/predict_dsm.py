@@ -1,18 +1,15 @@
 import torch
 import numpy as np
 from elevate3d.core.models import Generator
+from elevate3d.utils.download_manager import DownloadManager
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
-from huggingface_hub import hf_hub_download
 
 
 def load_generator(model_path=None, device="cpu"):
     if model_path is None:
-        model_path = hf_hub_download(
-            repo_id="krdgomer/elevate3d-weights",
-            filename="gen.pth.tar",
-            cache_dir="hf_cache"  # Optional: keeps files in a project dir
-        )
+        download_manager = DownloadManager()
+        model_path = download_manager.download_file("gen.pth.tar")
 
     print(f"Loading generator model from {model_path}...")
     
