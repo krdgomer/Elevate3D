@@ -244,9 +244,22 @@ class BuildingMeshGenerator:
 
                 # Calculate building height
                 dsm_values = self.dsm[building_area]
-                height = np.median(dsm_values - self.dtm[building_area]) * self.height_scale
-                height = max(0.005, min(height, 0.05))
+                avg_dsm = np.mean(dsm_values) if len(dsm_values) > 0 else np.min(self.dsm)
 
+                # Normalize height proportionally based on DSM range
+                min_dsm = np.min(self.dsm)
+                max_dsm = np.max(self.dsm)
+                min_height = 0.01  # Minimum building height
+                max_height = 0.05    # Maximum building height
+
+                if max_dsm != min_dsm:  # Avoid division by zero
+                    normalized_height = (avg_dsm - min_dsm) / (max_dsm - min_dsm)
+                    height = min_height + (max_height - min_height) * normalized_height
+                else:
+                    height = (min_height + max_height) / 2  # Default if all DSM values are the same
+
+                height = max(0.005, min(height, 0.05))
+                
                 # Crop the RGB image based on the bounding box of the building mask
                 y_coords, x_coords = np.where(building_area)
                 x_min, x_max = np.min(x_coords), np.max(x_coords)
