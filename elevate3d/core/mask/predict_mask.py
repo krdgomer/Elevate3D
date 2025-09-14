@@ -31,7 +31,6 @@ def predict_mask(input_image):
     Returns:
         labeled_mask: Labeled mask as a NumPy array (H x W, dtype: uint8) with unique labels for each building.
     """
-    print("Predicting mask...")
 
     # Load model
     model = get_maskrcnn_model()

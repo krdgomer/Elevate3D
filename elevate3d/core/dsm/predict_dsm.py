@@ -11,7 +11,6 @@ def load_generator(model_path=None, device="cpu"):
         download_manager = DownloadManager()
         model_path = download_manager.download_file("gen.pth.tar")
 
-    print(f"Loading generator model from {model_path}...")
     
     generator = Generator().to(device)  
     checkpoint = torch.load(model_path, map_location=device)
@@ -46,12 +45,9 @@ def predict_dsm(input_img):
     Returns:
         Predicted DSM as an OpenCV image (shape: H x W, dtype: uint8, range: 0-255).
     """
-    print("Predicting DSM...")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = load_generator(device=device)
     model.eval()
-
-    print("Loaded Generator Model")
 
     # Albumentations transforms
     transform = A.Compose([

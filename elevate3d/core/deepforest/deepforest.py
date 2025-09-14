@@ -11,7 +11,7 @@ def run_deepforest(image_path):
     Returns:
         boxes: a list of bounding boxes predicted by the model.
     """
-    print("Running DeepForest...")
+   
     model = main.deepforest()
 
     model.load_model(model_name="weecology/deepforest-tree", revision="main")
