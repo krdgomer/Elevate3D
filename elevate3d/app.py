@@ -4,7 +4,7 @@ import uuid
 import sys
 from werkzeug.utils import secure_filename
 from pathlib import Path
-from elevate3d.run_pipeline import run_pipeline
+from elevate3d.run_pipeline import Pipeline
 import platform
 
 def create_app():
@@ -43,7 +43,7 @@ def create_app():
     def index():
         # Handle both development and installed package cases
         try:
-            from elevate3d import templates
+            from templates import templates
             return send_from_directory(Path(templates.__file__).parent, 'index.html')
         except:
             return send_from_directory('templates', 'index.html')
@@ -68,8 +68,9 @@ def create_app():
                 model_filename = f"{uuid.uuid4()}.glb"
                 model_path = os.path.join(app.config['MODEL_FOLDER'], model_filename)
                 
-                # Process the image
-                run_pipeline(upload_path, model_path)
+                # Process the image using the Pipeline class
+                pipeline = Pipeline(upload_path, model_path)
+                pipeline.run()
                 
                 # Verify model was created
                 if not os.path.exists(model_path):

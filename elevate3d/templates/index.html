@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>3D Model Viewer</title>
+    <link rel="stylesheet" href="/static/css/styles.css" />
+  </head>
+  <body>
+    <div id="upload-container">
+      <input type="file" id="file-input" accept="image/*" />
+      <button id="upload-btn">Generate 3D Model</button>
+    </div>
+
+    <div id="loading">Processing your image...</div>
+
+    <div id="model-container"></div>
+
+    <!-- Three.js and dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="/static/js/threejs-setup.js"></script>
+    <script src="/static/js/upload-handler.js"></script>
+  </body>
+</html>
