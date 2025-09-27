@@ -1,35 +1,96 @@
 import numpy as np
 import open3d as o3d
+from scipy import ndimage
 
 class TerrainMeshGenerator:
-    def __init__(self, dtm, rgb, height_scale=0.1):
-        self.dtm = dtm
+    def __init__(self, dtm, rgb, height_scale=1.0, smooth_sigma=10, terrain_height_range=0.2):
+        self.dtm = dtm.copy()
         self.rgb = rgb
         self.height_scale = height_scale
-
+        self.smooth_sigma = smooth_sigma
+        self.terrain_height_range = terrain_height_range  # Max terrain height variation
+        self.h, self.w = dtm.shape
+        
+        # Preprocess the terrain
+        self._smooth_terrain()
+    
+    def _smooth_terrain(self):
+        """Apply smoothing while preserving terrain features"""
+        print(f"Original DTM range: {self.dtm.min():.4f} to {self.dtm.max():.4f}")
+        
+        # Remove extreme outliers (less aggressive)
+        lower_percentile = np.percentile(self.dtm, 2)
+        upper_percentile = np.percentile(self.dtm, 98)
+        self.dtm = np.clip(self.dtm, lower_percentile, upper_percentile)
+        
+        # Apply moderate Gaussian smoothing
+        if self.smooth_sigma > 0:
+            self.dtm = ndimage.gaussian_filter(self.dtm, sigma=self.smooth_sigma)
+        
+        print(f"Smoothed DTM range: {self.dtm.min():.4f} to {self.dtm.max():.4f}")
+    
     def generate_terrain_mesh(self):
-        h, w = self.dtm.shape
+        h, w = self.h, self.w
+        
+        # Create grid coordinates
         x, y = np.meshgrid(np.arange(w), np.arange(h))
-
-
-        vertices = np.stack((x.flatten(), y.flatten(), self.dtm.flatten()), axis=1).astype(np.float32)
-        vertices[:, 0] /= w
-        vertices[:, 1] /= h
-        vertices[:, 2] *= self.height_scale
-
+        x_norm = x.astype(np.float32) / w
+        y_norm = y.astype(np.float32) / h
+        
+        # Calculate height - PRESERVE the natural terrain variation
+        min_dtm = np.min(self.dtm)
+        max_dtm = np.max(self.dtm)
+        
+        if max_dtm != min_dtm:
+            # Normalize to [0,1] but preserve the relative height differences
+            normalized_height = (self.dtm - min_dtm) / (max_dtm - min_dtm)
+            # Scale to desired height range (not too flat!)
+            z = normalized_height * self.terrain_height_range
+        else:
+            z = np.zeros_like(self.dtm)
+        
+        z = z * self.height_scale
+        
+        print(f"Final terrain height range: {z.min():.4f} to {z.max():.4f}")
+        
+        # Create vertices
+        vertices = np.stack((x_norm.flatten(), y_norm.flatten(), z.flatten()), axis=1).astype(np.float32)
+        
+        # Create faces
         faces = []
         for i in range(h - 1):
             for j in range(w - 1):
                 idx = i * w + j
-                faces.append([idx, idx + 1, idx + w])
-                faces.append([idx + 1, idx + w + 1, idx + w])
-
+                faces.append([idx, idx + w, idx + 1])
+                faces.append([idx + 1, idx + w, idx + w + 1])
+        
         mesh = o3d.geometry.TriangleMesh(
             vertices=o3d.utility.Vector3dVector(vertices),
             triangles=o3d.utility.Vector3iVector(faces)
         )
-
-        colors = self.rgb.reshape(-1, 3) / 255.0
-        mesh.vertex_colors = o3d.utility.Vector3dVector(colors)
+        
+        # Add colors
+        if self.rgb.shape[:2] == (h, w):
+            colors = self.rgb.reshape(-1, 3) / 255.0
+            mesh.vertex_colors = o3d.utility.Vector3dVector(colors)
+        
         mesh.compute_vertex_normals()
         return mesh
+    
+    def get_terrain_height_at_position(self, x_norm, y_norm):
+        """Get terrain height at normalized coordinates"""
+        x_pixel = int(x_norm * self.w)
+        y_pixel = int(y_norm * self.h)
+        x_pixel = np.clip(x_pixel, 0, self.w - 1)
+        y_pixel = np.clip(y_pixel, 0, self.h - 1)
+        
+        min_dtm = np.min(self.dtm)
+        max_dtm = np.max(self.dtm)
+        
+        if max_dtm != min_dtm:
+            normalized_height = (self.dtm[y_pixel, x_pixel] - min_dtm) / (max_dtm - min_dtm)
+            terrain_height = normalized_height * self.terrain_height_range
+        else:
+            terrain_height = 0.0
+            
+        return terrain_height * self.height_scale

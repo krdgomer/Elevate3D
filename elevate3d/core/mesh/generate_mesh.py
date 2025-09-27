@@ -23,14 +23,14 @@ class MeshGenerator:
         self.wall_texture = self.texture_manager.load_texture("walltex.jpg")
         self.roof_texture = self.texture_manager.load_texture("rooftex.jpg")
         self.roof_predictor = SimpleRoofPredictor()
-
+        self.terrain_mesh_generator = TerrainMeshGenerator(self.dtm, self.rgb, self.height_scale)
         self.building_mesh_generator = BuildingMeshGenerator(
             self.rgb, self.dsm, self.dtm, self.mask, self.roof_predictor,
-            self.wall_texture, self.roof_texture, self.height_scale
+            self.wall_texture, self.roof_texture, self.terrain_mesh_generator, self.height_scale
         )
         self.tree_mesh_generator = TreeMeshGenerator(self.dtm, self.height_scale)
         self.tree_model_path = self.tree_mesh_generator.setup_tree_assets()
-        self.terrain_mesh_generator = TerrainMeshGenerator(self.dtm, self.rgb, self.height_scale)
+        
 
     def generate_building_meshes(self):
         return self.building_mesh_generator.generate_building_meshes()
@@ -115,7 +115,7 @@ class MeshGenerator:
                 return None
         else:
             o3d.visualization.draw_geometries(
-                [terrain] + buildings + trees,
+                [terrain] + buildings,
                 mesh_show_back_face=True,
                 mesh_show_wireframe=False
             )

@@ -7,7 +7,7 @@ import open3d as o3d
 import cv2
 
 class BuildingMeshGenerator:
-    def __init__(self, rgb, dsm, dtm, mask, roof_predictor, wall_texture, roof_texture, height_scale=0.1):
+    def __init__(self, rgb, dsm, dtm, mask, roof_predictor, wall_texture, roof_texture, terrain_generator, height_scale=0.2):
         self.rgb = rgb
         self.dsm = dsm
         self.dtm = dtm
@@ -16,6 +16,7 @@ class BuildingMeshGenerator:
         self.wall_texture = wall_texture
         self.roof_texture = roof_texture
         self.height_scale = height_scale
+        self.terrain_generator = terrain_generator
 
 
     def create_flat_roof_building(self, footprint, base_height, building_height, h, w):
@@ -68,51 +69,62 @@ class BuildingMeshGenerator:
         return vertices, faces, uv_coords, material_ids
 
     def create_gabled_roof_building(self, footprint, base_height, building_height, h, w):
-        """Create building with gabled roof"""
+        """Create building with gabled roof."""
         print("Creating gabled roof building")
 
         n_verts = len(footprint)
-        
+
         # Find the longest edge to determine ridge direction
         edge_lengths = []
         for i in range(n_verts):
             next_i = (i + 1) % n_verts
             edge_length = np.linalg.norm(footprint[next_i] - footprint[i])
             edge_lengths.append(edge_length)
-        
+
         longest_edge_idx = np.argmax(edge_lengths)
-        
-        # Create ridge line parallel to longest edge
+
+        # Get the endpoints of the longest edge
         ridge_start_idx = longest_edge_idx
         ridge_end_idx = (longest_edge_idx + 1) % n_verts
-        
-        # Calculate ridge line endpoints (offset inward)
-        ridge_offset = 0.1  # 10% inward from edges
-        ridge_start = footprint[ridge_start_idx] + ridge_offset * (footprint[ridge_end_idx] - footprint[ridge_start_idx])
-        ridge_end = footprint[ridge_end_idx] - ridge_offset * (footprint[ridge_end_idx] - footprint[ridge_start_idx])
-        
+        longest_edge_start = footprint[ridge_start_idx]
+        longest_edge_end = footprint[ridge_end_idx]
+
+        # Calculate the centroid of the building footprint
+        centroid = np.mean(footprint, axis=0)
+
+        # Calculate the direction vector of the longest edge
+        edge_direction = longest_edge_end - longest_edge_start
+        edge_direction /= np.linalg.norm(edge_direction)  # Normalize the direction vector
+
+        # Calculate the ridge line length (equal to the longest edge length)
+        ridge_length = np.linalg.norm(longest_edge_end - longest_edge_start)
+
+        # Calculate the ridge line passing through the centroid
+        ridge_start = centroid - edge_direction * (ridge_length / 2)  # Half the ridge length in one direction
+        ridge_end = centroid + edge_direction * (ridge_length / 2)  # Half the ridge length in the other direction
+
         # Calculate ridge height (higher than walls)
         wall_height = building_height * 0.7
         ridge_height = building_height * 1.2
-        
+
         # Bottom vertices (foundation)
         bottom_vertices = np.column_stack((footprint, np.full(n_verts, base_height)))
-        
+
         # Wall top vertices
         wall_top_vertices = np.column_stack((footprint, np.full(n_verts, base_height + wall_height)))
-        
+
         # Ridge vertices
         ridge_vertices = np.array([
             [ridge_start[0], ridge_start[1], base_height + ridge_height],
             [ridge_end[0], ridge_end[1], base_height + ridge_height]
         ])
-        
+
         vertices = np.vstack([bottom_vertices, wall_top_vertices, ridge_vertices])
-        
+
         faces = []
         uv_coords = []
         material_ids = []
-        
+
         # WALLS
         max_height = 0.05
         for i in range(n_verts):
@@ -122,37 +134,32 @@ class BuildingMeshGenerator:
 
             faces.append([b1, b2, t2])
             faces.append([b1, t2, t1])
-            
+
             wall_height_norm = wall_height / max_height
             uv_coords.extend([
                 [0, 0], [1, 0], [1, wall_height_norm],
                 [0, 0], [1, wall_height_norm], [0, wall_height_norm]
             ])
             material_ids.extend([0, 0])  # Wall material
-        
+
         # ROOF FACES (connecting walls to ridge)
         ridge_start_idx = 2 * n_verts
         ridge_end_idx = 2 * n_verts + 1
-        
-        # Create roof triangles connecting wall edges to ridge
+
         for i in range(n_verts):
+            next_i = (i + 1) % n_verts
             wall_top_idx = i + n_verts
-            next_wall_top_idx = ((i + 1) % n_verts) + n_verts
-            
-            # Determine which ridge point is closer
-            wall_pos = vertices[wall_top_idx][:2]
-            dist_to_start = np.linalg.norm(wall_pos - ridge_vertices[0][:2])
-            dist_to_end = np.linalg.norm(wall_pos - ridge_vertices[1][:2])
-            
-            closer_ridge_idx = ridge_start_idx if dist_to_start < dist_to_end else ridge_end_idx
-            
-            # Create roof triangle
-            faces.append([wall_top_idx, next_wall_top_idx, closer_ridge_idx])
-            
+            next_wall_top_idx = next_i + n_verts
+
+            # Create two triangles for each wall segment
+            faces.append([wall_top_idx, next_wall_top_idx, ridge_start_idx])
+            faces.append([wall_top_idx, ridge_start_idx, ridge_end_idx])
+
             # UV coordinates for roof
             uv_coords.extend([[0, 0], [1, 0], [0.5, 1]])
-            material_ids.append(1)  # Roof material
-        
+            uv_coords.extend([[0, 0], [0.5, 1], [1, 1]])
+            material_ids.extend([1, 1])  # Roof material
+
         return vertices, faces, uv_coords, material_ids
 
     def create_hip_roof_building(self, footprint, base_height, building_height, h, w):
@@ -219,6 +226,14 @@ class BuildingMeshGenerator:
         unique_ids = unique_ids[unique_ids > 0]
         h, w = self.dtm.shape
 
+        # Get the EXACT same terrain parameters as terrain generator
+        min_dtm = np.min(self.dtm)
+        max_dtm = np.max(self.dtm)
+        terrain_height_range = 0.1  # MUST match terrain generator's terrain_height_range
+        height_scale = self.height_scale
+
+        print(f"Building generator using: min_dtm={min_dtm:.4f}, max_dtm={max_dtm:.4f}, terrain_height_range={terrain_height_range}")
+
         for bid in unique_ids:
             region = (self.mask == bid).astype(np.uint8) * 255
             contours, _ = cv2.findContours(region, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -239,28 +254,52 @@ class BuildingMeshGenerator:
                 if np.sum(building_area) < 10:
                     continue
 
-                # Base height from DTM
-                base_height = np.mean(self.dtm[building_area]) * self.height_scale
+                # Prepare footprint
+                footprint = approx[:, 0, :].astype(np.float32)
+                footprint[:, 0] /= w
+                footprint[:, 1] /= h
 
-                # Calculate building height
+                # DEBUG: Check what terrain values we're working with in this area
+                building_pixels = np.where(building_area)
+                building_dtm_values = self.dtm[building_pixels]
+                print(f"Building {bid}: DTM values in area: min={np.min(building_dtm_values):.2f}, max={np.max(building_dtm_values):.2f}, mean={np.mean(building_dtm_values):.2f}")
+
+                # Get base height from terrain - use AVERAGE of building area, not just centroid
+                building_pixels = np.where(building_area)
+                building_dtm_values = self.dtm[building_pixels]
+                
+                # EXACT SAME CALCULATION AS TERRAIN GENERATOR
+                if max_dtm != min_dtm:
+                    # Normalize the AVERAGE DTM value of the building area
+                    avg_dtm_value = np.mean(building_dtm_values)
+                    normalized_height = (avg_dtm_value - min_dtm) / (max_dtm - min_dtm)
+                    base_height = normalized_height * terrain_height_range
+                else:
+                    base_height = 0.0
+                    
+                base_height = base_height * height_scale
+
+                # Calculate building height from DSM (relative to terrain)
                 dsm_values = self.dsm[building_area]
                 avg_dsm = np.mean(dsm_values) if len(dsm_values) > 0 else np.min(self.dsm)
 
-                # Normalize height proportionally based on DSM range
-                min_dsm = np.min(self.dsm)
-                max_dsm = np.max(self.dsm)
-                min_height = 0.01  # Minimum building height
-                max_height = 0.05    # Maximum building height
+                # Calculate height above terrain based on DSM-DTM difference
+                avg_dtm = np.mean(building_dtm_values)
+                height_above_terrain = max(0.01, (avg_dsm - avg_dtm) * 0.001)  # Scale appropriately
 
-                if max_dsm != min_dsm:  # Avoid division by zero
-                    normalized_height = (avg_dsm - min_dsm) / (max_dsm - min_dsm)
-                    height = min_height + (max_height - min_height) * normalized_height
-                else:
-                    height = (min_height + max_height) / 2  # Default if all DSM values are the same
-
-                height = max(0.005, min(height, 0.05))
+                # Alternatively, use normalized approach but ensure it's reasonable
+                min_height_above_terrain = 0.01
+                max_height_above_terrain = 0.05
                 
-                # Crop the RGB image based on the bounding box of the building mask
+                if max_dtm != min_dtm:
+                    normalized_dsm = (avg_dsm - min_dtm) / (max_dtm - min_dtm)
+                    height_above_terrain = min_height_above_terrain + (max_height_above_terrain - min_height_above_terrain) * normalized_dsm
+                else:
+                    height_above_terrain = (min_height_above_terrain + max_height_above_terrain) / 2
+
+                height_above_terrain = max(0.01, min(height_above_terrain, 0.08))
+                
+                # Crop the RGB image
                 y_coords, x_coords = np.where(building_area)
                 x_min, x_max = np.min(x_coords), np.max(x_coords)
                 y_min, y_max = np.min(y_coords), np.max(y_coords)
@@ -271,30 +310,25 @@ class BuildingMeshGenerator:
                 building_rgb_image = Image.fromarray(cropped_rgb)
 
                 # Predict roof type
-                predicted_class, confidence, _, _ = self.roof_predictor.predict(building_rgb_image)
-                print(f"Building {bid}: Predicted roof type = {predicted_class} confidence: {confidence:.3f}")
+                predicted_class, confidence, all_probs = self.roof_predictor.predict(building_rgb_image)
+                print(f"Building {bid}: Base={base_height:.4f}, Above={height_above_terrain:.4f}, Total={base_height + height_above_terrain:.4f}")
 
-                # Prepare footprint
-                footprint = approx[:, 0, :].astype(np.float32)
-                footprint[:, 0] /= w
-                footprint[:, 1] /= h
-
-                # Generate mesh based on roof type
+                # Generate mesh
                 if predicted_class == "flat":
                     vertices, faces, uv_coords, material_ids = self.create_flat_roof_building(
-                        footprint, base_height, height, h, w
+                        footprint, base_height, height_above_terrain, h, w
                     )
                 elif predicted_class == "gable":
                     vertices, faces, uv_coords, material_ids = self.create_gabled_roof_building(
-                        footprint, base_height, height, h, w
+                        footprint, base_height, height_above_terrain, h, w
                     )
                 elif predicted_class == "hip":
                     vertices, faces, uv_coords, material_ids = self.create_hip_roof_building(
-                        footprint, base_height, height, h, w
+                        footprint, base_height, height_above_terrain, h, w
                     )
-                else:  # Default to flat roof for unsupported types
+                else:
                     vertices, faces, uv_coords, material_ids = self.create_flat_roof_building(
-                        footprint, base_height, height, h, w
+                        footprint, base_height, height_above_terrain, h, w
                     )
 
                 # Create mesh
