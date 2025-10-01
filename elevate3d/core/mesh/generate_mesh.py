@@ -8,6 +8,7 @@ from elevate3d.core.mesh.generate_building_mesh import BuildingMeshGenerator
 from elevate3d.core.mesh.generate_tree_mesh import TreeMeshGenerator
 from elevate3d.core.mesh.generate_terrain_mesh import TerrainMeshGenerator
 from elevate3d.core.roof.predict_roof import SimpleRoofPredictor
+from elevate3d.core.mesh.building import BuildingManager
 
 class MeshGenerator:
     def __init__(self, rgb, dsm, dtm, mask, tree_boxes, height_scale=0.1):
@@ -25,15 +26,18 @@ class MeshGenerator:
         self.roof_predictor = SimpleRoofPredictor()
         self.terrain_mesh_generator = TerrainMeshGenerator(self.dtm, self.rgb, self.height_scale)
         self.building_mesh_generator = BuildingMeshGenerator(
-            self.rgb, self.dsm, self.dtm, self.mask, self.roof_predictor,
+            self.rgb, self.dsm, self.dtm, self.mask,
             self.wall_texture, self.roof_texture, self.terrain_mesh_generator, self.height_scale
         )
         self.tree_mesh_generator = TreeMeshGenerator(self.dtm, self.height_scale)
         self.tree_model_path = self.tree_mesh_generator.setup_tree_assets()
+
+        self.building_manager = BuildingManager(self.rgb, self.dsm, self.dtm, self.mask, self.roof_predictor)
         
 
     def generate_building_meshes(self):
-        return self.building_mesh_generator.generate_building_meshes()
+        self.building_manager.extract_buildings()
+        return self.building_mesh_generator.generate_building_meshes(self.building_manager.buildings)
 
     def generate_tree_meshes(self, tree_boxes_df, tree_model_path, fixed_height=0.05):
         return self.tree_mesh_generator.generate_tree_meshes(tree_boxes_df,tree_model_path, fixed_height)
