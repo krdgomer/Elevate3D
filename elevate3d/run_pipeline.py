@@ -16,6 +16,7 @@ class Pipeline:
     def load_image(self):
         logging.info("Loading image...")
         rgb_image = cv2.imread(self.image_path)
+        rgb_image= cv2.cvtColor(rgb_image, cv2.COLOR_BGR2RGB)
         if rgb_image is None:
             raise ValueError(f"Image at {self.image_path} could not be loaded.")
         if rgb_image.shape[:2] != (512, 512):
