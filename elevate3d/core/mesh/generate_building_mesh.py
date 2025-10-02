@@ -2,9 +2,7 @@ import numpy as np
 from scipy.spatial import Delaunay
 from matplotlib.path import Path as GeoPath
 from PIL import Image
-import matplotlib.pyplot as plt
 import open3d as o3d
-import cv2
 from elevate3d.core.mesh.building import Building
 
 class BuildingMeshGenerator:
@@ -18,82 +16,22 @@ class BuildingMeshGenerator:
         self.height_scale = height_scale
         self.terrain_generator = terrain_generator
 
-    def generate_building(self,building: Building,w,h,max_dtm,min_dtm,terrain_height_range):
-        
-
-        
-
-        epsilon = 1.0
-        approx = cv2.approxPolyDP(building.footprint, epsilon, True)
-
-
-        if np.sum(building.area) < 10:
+    def generate_building(self, building: Building, image_width, image_height):
+        """Generate a 3D mesh for a single building."""
+        if building.area < 10:
             print(f"Building {building.id} too small, skipping.")
             return None
 
-        # Prepare footprint
-        building.footprint = approx[:, 0, :].astype(np.float32)
-        building.footprint[:, 0] /= w
-        building.footprint[:, 1] /= h
-
-        # DEBUG: Check what terrain values we're working with in this area
-        building_pixels = np.where(building.region)
-        building_dtm_values = self.dtm[building_pixels]
-        print(f"Building {building.id}: DTM values in area: min={np.min(building_dtm_values):.2f}, max={np.max(building_dtm_values):.2f}, mean={np.mean(building_dtm_values):.2f}")
-
-        # Get base height from terrain - use AVERAGE of building area, not just centroid
-        building_pixels = np.where(building.region)
-        building_dtm_values = self.dtm[building_pixels]
-        
-        # EXACT SAME CALCULATION AS TERRAIN GENERATOR
-        if max_dtm != min_dtm:
-            # Normalize the AVERAGE DTM value of the building area
-            avg_dtm_value = np.mean(building_dtm_values)
-            normalized_height = (avg_dtm_value - min_dtm) / (max_dtm - min_dtm)
-            base_height = normalized_height * terrain_height_range
-        else:
-            base_height = 0.0
-            
-        base_height = base_height * self.height_scale
-
-        # Calculate building height from DSM (relative to terrain)
-        dsm_values = self.dsm[building.region]
-        avg_dsm = np.mean(dsm_values) if len(dsm_values) > 0 else np.min(self.dsm)
-
-        # Calculate height above terrain based on DSM-DTM difference
-        avg_dtm = np.mean(building_dtm_values)
-        height_above_terrain = max(0.01, (avg_dsm - avg_dtm) * 0.001)  # Scale appropriately
-
-        # Alternatively, use normalized approach but ensure it's reasonable
-        min_height_above_terrain = 0.01
-        max_height_above_terrain = 0.05
-        
-        if max_dtm != min_dtm:
-            normalized_dsm = (avg_dsm - min_dtm) / (max_dtm - min_dtm)
-            height_above_terrain = min_height_above_terrain + (max_height_above_terrain - min_height_above_terrain) * normalized_dsm
-        else:
-            height_above_terrain = (min_height_above_terrain + max_height_above_terrain) / 2
-
-        height_above_terrain = max(0.01, min(height_above_terrain, 0.08))
-       
-
-        # Generate mesh
-        if building.roof_type == "flat":
-            vertices, faces, uv_coords, material_ids = self.create_flat_roof_building(
-                building.footprint, base_height, height_above_terrain, h, w
-            )
-        elif building.roof_type == "gable":
-            vertices, faces, uv_coords, material_ids = self.create_gabled_roof_building(
-                building.footprint, base_height, height_above_terrain, h, w
-            )
-        elif building.roof_type == "hip":
-            vertices, faces, uv_coords, material_ids = self.create_hip_roof_building(
-                building.footprint, base_height, height_above_terrain, h, w
-            )
-        else:
-            vertices, faces, uv_coords, material_ids = self.create_flat_roof_building(
-                building.footprint, base_height, height_above_terrain, h, w
-            )
+        # Generate mesh based on roof type
+        roof_type_methods = {
+            "flat": self.create_flat_roof_building,
+            "gable": self.create_gabled_roof_building,
+            "hip": self.create_hip_roof_building,
+        }
+        create_roof_method = roof_type_methods.get(building.roof_type, self.create_flat_roof_building)
+        vertices, faces, uv_coordinates, material_ids = create_roof_method(
+            building.normalized_footprint, building.base_height, building.raw_height, image_height, image_width
+        )
 
         # Create mesh
         mesh = o3d.geometry.TriangleMesh(
@@ -101,7 +39,7 @@ class BuildingMeshGenerator:
             triangles=o3d.utility.Vector3iVector(faces)
         )
         mesh.textures = [self.wall_texture, self.roof_texture]
-        mesh.triangle_uvs = o3d.utility.Vector2dVector(uv_coords)
+        mesh.triangle_uvs = o3d.utility.Vector2dVector(uv_coordinates)
         mesh.triangle_material_ids = o3d.utility.IntVector(material_ids)
         mesh.compute_vertex_normals()
 
@@ -307,23 +245,16 @@ class BuildingMeshGenerator:
         
         return vertices, faces, uv_coords, material_ids
 
-    def generate_building_meshes(self,buildings):
+    def generate_building_meshes(self, buildings):
         """Generate building meshes with roof classification."""
         building_meshes = []
-        unique_ids = np.unique(self.mask)
-        unique_ids = unique_ids[unique_ids > 0]
-        h, w = self.dtm.shape
+        h, w = self.dsm.shape
 
-        # Get the EXACT same terrain parameters as terrain generator
-        min_dtm = np.min(self.dtm)
-        max_dtm = np.max(self.dtm)
-        terrain_height_range = 0.1  # MUST match terrain generator's terrain_height_range
-        height_scale = self.height_scale
-
-        print(f"Building generator using: min_dtm={min_dtm:.4f}, max_dtm={max_dtm:.4f}, terrain_height_range={terrain_height_range}")
+        print("Generating building meshes on a flat plane.")
 
         for building in buildings:
-            mesh = self.generate_building(building, w, h, max_dtm, min_dtm, terrain_height_range)
-            building_meshes.append(mesh)
+            mesh = self.generate_building(building, w, h)
+            if mesh is not None:
+                building_meshes.append(mesh)
 
         return building_meshes
