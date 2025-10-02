@@ -22,17 +22,16 @@ class Building:
         self.is_regular_shape = False
 
 class BuildingManager:
-    def __init__(self, rgb, dsm, dtm, mask, roof_predictor,height_scale=0.1):
+    def __init__(self, rgb, dsm, mask, roof_predictor,height_scale=0.1):
         self.buildings = []
         self.rgb = rgb
         self.w, self.h = dsm.shape
         self.dsm = dsm
-        self.dtm = dtm
         self.mask = mask
         self.roof_predictor = roof_predictor
         self.height_scale = height_scale
 
-    def extract_buildings(self):
+    def extract_buildings(self,z):
         unique_ids = np.unique(self.mask)
         unique_ids = unique_ids[unique_ids > 0] #Discard background
         
@@ -46,14 +45,24 @@ class BuildingManager:
             building.area = self._calculate_area(building.footprint)
             
             # Height analysis
-            building.raw_height = self._get_height_from_dsm(building.region)
-            building.base_height = self._get_terrain_height(bid)
+            building.base_height = self._get_terrain_height(building.region,z)
+            building.raw_height = self._get_height_from_dsm(building.region,building.base_height)
+           
             
             # Roof analysis  
             building.roof_type, building.roof_confidence = self._predict_roof_type(building.region)
             building.roof_color = self._extract_roof_color(bid)
             
             self.buildings.append(building)
+            print(f"Building ID: {building.id}")
+            print(f"  Position (Centroid): {building.position}")
+            print(f"  Area: {building.area}")
+            print(f"  Raw Height (DSM): {building.raw_height}")
+            print(f"  Base Height (DTM): {building.base_height}")
+            print(f"  Roof Type: {building.roof_type}")
+            print(f"  Roof Confidence: {building.roof_confidence}")
+            print(f"  Roof Color: {building.roof_color}")
+            print("-" * 50)
 
     def _get_footprint(self, bid):
         """Extract the footprint (polygon) of the building with ID `bid`."""
@@ -66,13 +75,24 @@ class BuildingManager:
         if contours:
             # Assume the largest contour is the building footprint
             largest_contour = max(contours, key=cv2.contourArea)
+            largest_contour = self._simplify_contour(largest_contour)
             largest_contour = largest_contour.squeeze()
+
             normalized_footprint = largest_contour.astype(np.float32)
             normalized_footprint[:, 0] /= self.w
             normalized_footprint[:, 1] /= self.h
             return largest_contour,normalized_footprint,building_mask  # Return as a 2D array of (x, y) points
         return None
+    def _simplify_contour(self, contour, epsilon_ratio=1):
+        """
+        Simplify building footprint to reduce jagged edges.
+        Args:
+            contour: Nx2 array
+            epsilon_ratio: fraction of perimeter for simplification tolerance
+        """
 
+        approx = cv2.approxPolyDP(contour, epsilon_ratio, True)
+        return approx
     def _get_centroid(self, footprint):
         """Calculate the centroid of the building footprint."""
         if footprint is None or len(footprint) == 0:
@@ -90,22 +110,26 @@ class BuildingManager:
             return 0.0
         return cv2.contourArea(footprint)
 
-    def _get_height_from_dsm(self,region):
+    def _get_height_from_dsm(self,region,base_height=0.0):
         """Calculate the raw height of the building from the DSM."""
         
         dsm_min_value = np.min(self.dsm)
         dsm_max_value = np.max(self.dsm)
-        normalized_dsm = (self.dsm - dsm_min_value) / (dsm_max_value - dsm_min_value) * self.height_scale
-        building_height = np.mean(normalized_dsm[region])
-        return building_height
+        normalized_dsm = (self.dsm - dsm_min_value) / (dsm_max_value - dsm_min_value)
+        building_height = np.mean(normalized_dsm[region]) * self.height_scale
+        return building_height + base_height
 
-    def _get_terrain_height(self, region):
+    def _get_terrain_height(self, region,z):
         """Calculate the base height of the building from the DTM."""
-        # Base height and height above terrain
-        dtm_min_value = np.min(self.dtm)
-        dtm_max_value = np.max(self.dtm)
-        normalized_dtm = (self.dtm - dtm_min_value) / (dtm_max_value - dtm_min_value) * self.height_scale
-        base_height = np.mean(normalized_dtm[region])
+        # Check if the region is valid
+        if np.count_nonzero(region) == 0:
+            print(f"Warning: Empty region for building. Setting base height to 0.")
+            return 0.0
+
+
+        # Calculate base height
+        base_height = np.mean(z[region]) 
+        print(f"Calculated Base Height: {base_height}")
         return base_height
 
     def _predict_roof_type(self,building_region):

@@ -4,11 +4,11 @@ import numpy as np
 import open3d as o3d
 import traceback
 from elevate3d.utils.download_manager import DownloadManager
+from elevate3d.core.mesh.building import Building
 
 
 class TreeMeshGenerator:
-    def __init__(self, dtm, height_scale=0.1):
-        self.dtm = dtm
+    def __init__(self,height_scale=0.1):
         self.height_scale = height_scale
         self.download_manager = DownloadManager()
 
@@ -20,7 +20,7 @@ class TreeMeshGenerator:
             print(f"Failed to download tree assets: {e}")
             return None
 
-    def generate_tree_meshes(self, tree_boxes_df, tree_model_path, fixed_height=0.05):
+    def generate_tree_meshes(self, z, tree_boxes_df, tree_model_path, buildings: list[Building], fixed_height=0.05):
         if tree_boxes_df is None or len(tree_boxes_df) == 0:
             return []
 
@@ -48,7 +48,7 @@ class TreeMeshGenerator:
             scale_factor = fixed_height / bbox.get_extent()[2]
             tree_model.scale(scale_factor, center=(0, 0, 0))
 
-            h, w = self.dtm.shape
+            h, w = z.shape
             tree_meshes = []
             
             for _, row in tree_boxes_df.iterrows():
@@ -58,7 +58,19 @@ class TreeMeshGenerator:
                 if center_x >= w or center_y >= h:
                     continue
 
-                base_z = self.dtm[center_y, center_x] * self.height_scale
+                # Check if the tree is inside any building
+                is_inside_building = False
+                for building in buildings:
+                    if building.region is not None and building.region[center_y, center_x]:
+                        is_inside_building = True
+                        break
+
+                if is_inside_building:
+                    print(f"Tree at ({center_x}, {center_y}) is inside a building. Discarding.")
+                    continue
+
+                # Calculate tree position
+                base_z = z[center_y, center_x] 
                 nx = center_x / w
                 ny = center_y / h
                 tree = copy.deepcopy(tree_model).translate((nx, ny, base_z))

@@ -6,15 +6,14 @@ import open3d as o3d
 from elevate3d.core.mesh.building import Building
 
 class BuildingMeshGenerator:
-    def __init__(self, rgb, dsm, dtm, mask, wall_texture, roof_texture, terrain_generator, height_scale=0.2):
+    def __init__(self, rgb, dsm, dtm, mask, wall_texture, roof_texture):
         self.rgb = rgb
         self.dsm = dsm
         self.dtm = dtm
         self.mask = mask
         self.wall_texture = wall_texture
         self.roof_texture = roof_texture
-        self.height_scale = height_scale
-        self.terrain_generator = terrain_generator
+
 
     def generate_building(self, building: Building, image_width, image_height):
         """Generate a 3D mesh for a single building."""
@@ -27,6 +26,8 @@ class BuildingMeshGenerator:
             "flat": self.create_flat_roof_building,
             "gable": self.create_gabled_roof_building,
             "hip": self.create_hip_roof_building,
+            "complex:": self.create_flat_roof_building,  # Fallback to flat for complex roofs
+            "pyramid": self.create_hip_roof_building
         }
         create_roof_method = roof_type_methods.get(building.roof_type, self.create_flat_roof_building)
         vertices, faces, uv_coordinates, material_ids = create_roof_method(
@@ -76,7 +77,6 @@ class BuildingMeshGenerator:
                     material_ids.append(1)  # Roof material
 
         # WALLS
-        max_height = 0.05  # Your max height for normalization
         for i in range(len(footprint)):
             i_next = (i + 1) % len(footprint)
             b1, b2 = i, i_next
@@ -85,7 +85,8 @@ class BuildingMeshGenerator:
             faces.append([b1, b2, t2])
             faces.append([b1, t2, t1])
             
-            wall_height_norm = building_height / max_height
+            
+            wall_height_norm = 1.0  # Since building_height / max_height will always be 1.0
             uv_coords.extend([
                 [0, 0], [1, 0], [1, wall_height_norm],
                 [0, 0], [1, wall_height_norm], [0, wall_height_norm]
@@ -161,7 +162,7 @@ class BuildingMeshGenerator:
             faces.append([b1, b2, t2])
             faces.append([b1, t2, t1])
 
-            wall_height_norm = wall_height / max_height
+            wall_height_norm = 1.0  
             uv_coords.extend([
                 [0, 0], [1, 0], [1, wall_height_norm],
                 [0, 0], [1, wall_height_norm], [0, wall_height_norm]
@@ -226,7 +227,7 @@ class BuildingMeshGenerator:
             faces.append([b1, b2, t2])
             faces.append([b1, t2, t1])
             
-            wall_height_norm = wall_height / max_height
+            wall_height_norm = 1.0  
             uv_coords.extend([
                 [0, 0], [1, 0], [1, wall_height_norm],
                 [0, 0], [1, wall_height_norm], [0, wall_height_norm]

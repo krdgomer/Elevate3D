@@ -27,29 +27,29 @@ class MeshGenerator:
         self.terrain_mesh_generator = TerrainMeshGenerator(self.dtm, self.rgb, self.height_scale)
         self.building_mesh_generator = BuildingMeshGenerator(
             self.rgb, self.dsm, self.dtm, self.mask,
-            self.wall_texture, self.roof_texture, self.terrain_mesh_generator, self.height_scale
+            self.wall_texture, self.roof_texture
         )
-        self.tree_mesh_generator = TreeMeshGenerator(self.dtm, self.height_scale)
+        self.tree_mesh_generator = TreeMeshGenerator(self.height_scale)
         self.tree_model_path = self.tree_mesh_generator.setup_tree_assets()
 
-        self.building_manager = BuildingManager(self.rgb, self.dsm, self.dtm, self.mask, self.roof_predictor, self.height_scale)
+        self.building_manager = BuildingManager(self.rgb, self.dsm, self.mask, self.roof_predictor, self.height_scale)
         
 
-    def generate_building_meshes(self):
-        self.building_manager.extract_buildings()
+    def generate_building_meshes(self,z):
+        self.building_manager.extract_buildings(z)
         return self.building_mesh_generator.generate_building_meshes(self.building_manager.buildings)
 
-    def generate_tree_meshes(self, tree_boxes_df, tree_model_path, fixed_height=0.05):
-        return self.tree_mesh_generator.generate_tree_meshes(tree_boxes_df,tree_model_path, fixed_height)
+    def generate_tree_meshes(self, z,tree_boxes_df, tree_model_path,buildings, fixed_height=0.05):
+        return self.tree_mesh_generator.generate_tree_meshes(z,tree_boxes_df,tree_model_path, buildings, fixed_height)
 
     def generate_terrain_mesh(self):
         return self.terrain_mesh_generator.generate_terrain_mesh()
 
 
     def visualize(self, save_path=None):
-        terrain = self.generate_terrain_mesh()
-        buildings = self.generate_building_meshes()
-        trees = self.generate_tree_meshes(self.tree_boxes, self.tree_model_path) if self.tree_boxes is not None else []
+        terrain, z = self.generate_terrain_mesh()
+        buildings = self.generate_building_meshes(z)
+        trees = self.generate_tree_meshes(z, self.tree_boxes, self.tree_model_path, self.building_manager.buildings) if self.tree_boxes is not None else []
 
         if save_path:
             try:
@@ -119,7 +119,7 @@ class MeshGenerator:
                 return None
         else:
             o3d.visualization.draw_geometries(
-                [terrain] + buildings,
+                [terrain] + buildings + trees,
                 mesh_show_back_face=True,
                 mesh_show_wireframe=False
             )

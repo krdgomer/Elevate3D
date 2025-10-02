@@ -1,6 +1,8 @@
 import numpy as np
 import cv2
 import numba
+from scipy import ndimage
+
 
 def normalize_safe(array):
     """Safe normalization that handles constant arrays."""
@@ -197,6 +199,21 @@ def generate_dtm_csf_optimized(dsm_uint8, max_iterations=50, rigidness=2.5,
     
     return dtm_uint8, building_height_float
 
+def smooth_terrain(dtm,smooth_sigma=10):
+    """Apply smoothing while preserving terrain features"""
+  
+    
+    # Remove extreme outliers (less aggressive)
+    lower_percentile = np.percentile(dtm, 2)
+    upper_percentile = np.percentile(dtm, 98)
+    dtm = np.clip(dtm, lower_percentile, upper_percentile)
+    
+    # Apply moderate Gaussian smoothing
+    if smooth_sigma > 0:
+        dtm = ndimage.gaussian_filter(dtm, sigma=smooth_sigma)
+    
+    return dtm
+
 # Example usage with better error handling
 def generate_dtm(dsm_uint8):
     """Example usage with comprehensive error handling and analysis."""
@@ -218,7 +235,9 @@ def generate_dtm(dsm_uint8):
         dtm_float = dtm_float-dsm_float  
         dtm_csf = dtm_csf - dsm_uint8 
         
-        return dtm_csf
+        smoothed_dtm = smooth_terrain(dtm_csf,smooth_sigma=10)
+
+        return smoothed_dtm
         
     except Exception as e:
         print(f"Error in example_usage: {e}")
