@@ -22,7 +22,7 @@ class Building:
         self.is_regular_shape = False
 
 class BuildingManager:
-    def __init__(self, rgb, dsm, mask, roof_predictor,height_scale=0.1):
+    def __init__(self, rgb, dsm, mask, roof_predictor,height_scale=1):
         self.buildings = []
         self.rgb = rgb
         self.w, self.h = dsm.shape

@@ -32,7 +32,7 @@ class MeshGenerator:
         self.tree_mesh_generator = TreeMeshGenerator(self.height_scale)
         self.tree_model_path = self.tree_mesh_generator.setup_tree_assets()
 
-        self.building_manager = BuildingManager(self.rgb, self.dsm, self.mask, self.roof_predictor, self.height_scale)
+        self.building_manager = BuildingManager(self.rgb, self.dsm, self.mask, self.roof_predictor, 0.3)
         
 
     def generate_building_meshes(self,z):
