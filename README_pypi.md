@@ -4,26 +4,25 @@
 
 ---
 
-##  Disclaimer
+## Disclaimer
 
 **Elevate3D is an experimental, early-stage project.**  
-It’s not production-ready, and results may be inconsistent depending on the input. Expect rough outputs, strange artifacts, and occasional surprises.
-
-
----
-
-##  Features
-
--  Automatic Building Segmentation (Mask R-CNN)  
--  Elevation Prediction from RGB (Pix2Pix)  
--  3D Mesh Generation (Open3D)  
--  Tree Detection with DeepForest  
--  Pretrained Models – No training required  
--  End-to-End Pipeline – From image to interactive 3D output
+It's not production-ready, and results may be inconsistent depending on the input. Expect rough outputs, strange artifacts, and occasional surprises.
 
 ---
 
-##  Installation
+## Features
+
+- Automatic Building Segmentation (Mask R-CNN)
+- Elevation Prediction from RGB (Pix2Pix)
+- 3D Mesh Generation (Open3D)
+- Tree Detection with DeepForest
+- Pretrained Models - No training required
+- End-to-End Pipeline - From image to interactive 3D output
+
+---
+
+## Installation
 
 Install with pip:
 
@@ -33,7 +32,7 @@ pip install elevate3d
 
 ---
 
-##  Usage
+## Usage
 
 ### 1. Web Interface (Recommended)
 
@@ -59,22 +58,23 @@ This processes the image and opens a viewer window showing the 3D model.
 
 ---
 
-##  Input Requirements
+## Input Requirements
 
 - Accepts **aerial or satellite RGB images** (`.jpg`, `.jpeg`, `.png`)
 - Images should ideally be top-down and contain visible buildings or tree cover
 
 ---
 
-##  How It Works
+## How It Works
 
 - **Mask R-CNN** segments buildings
 - **Pix2Pix** generates DSM from RGB
 - **Tree detection** adds tree geometry
+- **ResNet-50** roof type detection
 - **Open3D** constructs the final mesh (as `.glb`)
 
 ---
 
-##  License
+## License
 
 MIT License. See [`LICENSE`](LICENSE) for details.
