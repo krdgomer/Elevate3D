@@ -7,6 +7,7 @@ from elevate3d.core.mask.predict_mask import predict_mask
 from elevate3d.core.deepforest.deepforest import run_deepforest
 import cv2
 import logging
+from elevate3d.config import IMAGE_SIZE
 
 class Pipeline:
     def __init__(self,image_path, output_model_path=None):
@@ -19,9 +20,9 @@ class Pipeline:
         rgb_image= cv2.cvtColor(rgb_image, cv2.COLOR_BGR2RGB)
         if rgb_image is None:
             raise ValueError(f"Image at {self.image_path} could not be loaded.")
-        if rgb_image.shape[:2] != (512, 512):
+        if rgb_image.shape[:2] != (IMAGE_SIZE, IMAGE_SIZE):
             actual_size = f"{rgb_image.shape[1]}x{rgb_image.shape[0]}"
-            raise ValueError(f"Image must be 512x512 pixels. Actual size: {actual_size}")
+            raise ValueError(f"Image must be {IMAGE_SIZE}x{IMAGE_SIZE} pixels. Actual size: {actual_size}")
         
         return rgb_image
 
@@ -57,15 +58,19 @@ class Pipeline:
             return None
         
     def run(self):
-        rgb_image = self.load_image()
-        dsm = self.process_dsm(rgb_image)
-        dtm = self.process_dtm(dsm)
-        mask = self.process_mask(rgb_image)
-        tree_boxes = self.process_tree_boxes()
-        result_path = self.generate_mesh(rgb_image, dsm, dtm, mask, tree_boxes, self.output_model_path)
-        
-        if result_path:
-            logging.info(f"3D model saved at: {result_path}")
+        try:
+            rgb_image = self.load_image()
+            dsm = self.process_dsm(rgb_image)
+            dtm = self.process_dtm(dsm)
+            mask = self.process_mask(rgb_image)
+            tree_boxes = self.process_tree_boxes()
+            result_path = self.generate_mesh(rgb_image, dsm, dtm, mask, tree_boxes, self.output_model_path)
+            
+            if result_path:
+                logging.info(f"3D model saved at: {result_path}")
+        except Exception as e:
+            logging.error(f"Pipeline failed: {e}")
+            raise
 
 
 

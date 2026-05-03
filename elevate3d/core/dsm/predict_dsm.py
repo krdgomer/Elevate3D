@@ -11,8 +11,7 @@ def load_generator(model_path=None, device="cpu"):
         download_manager = DownloadManager()
         model_path = download_manager.download_file("gen.pth.tar")
 
-    
-    generator = Generator().to(device)  
+    generator = Generator().to(device)
     checkpoint = torch.load(model_path, map_location=device)
 
     if "state_dict" in checkpoint:  
@@ -38,13 +37,7 @@ def normalize_safe(array):
     return (array - array_min) / (array_max - array_min)
 
 def predict_dsm(input_img):
-    """
-    Predict DSM from an image path and return it as an OpenCV image (uint8).
-    Args:
-        image_path: Path to the input image (reads with OpenCV).
-    Returns:
-        Predicted DSM as an OpenCV image (shape: H x W, dtype: uint8, range: 0-255).
-    """
+    """Predict DSM from a NumPy image array and return it as a uint8 array."""
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = load_generator(device=device)
     model.eval()

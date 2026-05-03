@@ -3,25 +3,20 @@ import torch.nn as nn
 from torchvision import transforms, models
 from PIL import Image
 from elevate3d.utils.download_manager import DownloadManager
+import logging
 
-# Import your build_model function if it's in another file, e.g. models.py
-# from .models import build_model  
-
-# Simple Roof Type Predictor
 class SimpleRoofPredictor:
     def __init__(self):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print(f"Using device: {self.device}")
+        logging.info(f"Using device: {self.device}")
 
-        # Define class names (match your dataset)
+        # Define class names for roof prediction
         self.class_names = ['complex', 'flat', 'gable', 'hip', 'pyramid']
 
-        # Load model
         download_manager = DownloadManager()
         model_path = download_manager.download_file("best_roof_model.pth")
         self.model = self.load_model(model_path)
 
-        # Image preprocessing
         self.transform = transforms.Compose([
             transforms.Resize((256, 256)),
             transforms.ToTensor(),
@@ -31,17 +26,16 @@ class SimpleRoofPredictor:
 
     def load_model(self, model_path):
         """Load the trained ResNet50 with custom classifier"""
-        # Use your trained architecture
         num_classes = len(self.class_names)
         model = models.resnet50(pretrained=True)
 
-        # Freeze all layers except layer4 + fc
+        # Freeze all layers except layer4 and fc
         for name, param in model.named_parameters():
             param.requires_grad = False
             if "layer4" in name or "fc" in name:
                 param.requires_grad = True
 
-        # Replace classifier head to match your training
+        # Replace classifier head with the target number of roof classes
         model.fc = nn.Sequential(
             nn.Linear(model.fc.in_features, 512),
             nn.ReLU(),
@@ -54,7 +48,7 @@ class SimpleRoofPredictor:
         model.load_state_dict(state_dict)
         model = model.to(self.device)
         model.eval()
-        print("Model loaded successfully!")
+        logging.info("Model loaded successfully!")
         return model
 
     def predict(self, image):

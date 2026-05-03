@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 import numba
 from scipy import ndimage
+import logging
 
 
 def normalize_safe(array):
@@ -120,17 +121,17 @@ def generate_dtm_csf(dsm_uint8, max_iterations=100, rigidness=2.0,
         max_change = np.max(np.abs(cloth_heights - prev_heights))
         if max_change < convergence_threshold:
             if verbose:
-                print(f"CSF converged after {iteration + 1} iterations")
+                logging.debug(f"CSF converged after {iteration + 1} iterations")
             converged = True
             break
         
         prev_heights = cloth_heights.copy()
         
         if verbose and iteration % 20 == 0:
-            print(f"Iteration {iteration + 1}, max change: {max_change:.4f}")
+            logging.debug(f"Iteration {iteration + 1}, max change: {max_change:.4f}")
     
     if not converged and verbose:
-        print(f"CSF did not converge after {max_iterations} iterations")
+        logging.debug(f"CSF did not converge after {max_iterations} iterations")
     
     # The final cloth heights represent the DTM
     dtm_float = cloth_heights
@@ -214,18 +215,15 @@ def smooth_terrain(dtm,smooth_sigma=10):
     
     return dtm
 
-# Example usage with better error handling
 def generate_dtm(dsm_uint8):
-    """Example usage with comprehensive error handling and analysis."""
+    """Generate a DTM from a uint8 DSM image using optimized CSF."""
     try:
-        
-        # Generate DTM using optimized CSF
-        print("Running Optimized Cloth Simulation Filter...")
+        logging.info("Running optimized cloth simulation filter")
         dtm_csf, height_csf = generate_dtm_csf_optimized(
-            dsm_uint8, 
-            max_iterations=50, 
+            dsm_uint8,
+            max_iterations=50,
             rigidness=2.5,
-            height_range=(0, 100)  # Adjust based on your data
+            height_range=(0, 100),
         )
         
         # Convert for analysis
@@ -240,7 +238,7 @@ def generate_dtm(dsm_uint8):
         return smoothed_dtm
         
     except Exception as e:
-        print(f"Error in example_usage: {e}")
+        logging.error(f"Error in example_usage: {e}")
         return None, None
     
 

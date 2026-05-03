@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 from PIL import Image
+import logging
 
 class Building:
     def __init__(self,bid):
@@ -54,15 +55,15 @@ class BuildingManager:
             building.roof_color = self._extract_roof_color(bid)
             
             self.buildings.append(building)
-            print(f"Building ID: {building.id}")
-            print(f"  Position (Centroid): {building.position}")
-            print(f"  Area: {building.area}")
-            print(f"  Raw Height (DSM): {building.raw_height}")
-            print(f"  Base Height (DTM): {building.base_height}")
-            print(f"  Roof Type: {building.roof_type}")
-            print(f"  Roof Confidence: {building.roof_confidence}")
-            print(f"  Roof Color: {building.roof_color}")
-            print("-" * 50)
+            logging.debug(f"Building ID: {building.id}")
+            logging.debug(f"  Position (Centroid): {building.position}")
+            logging.debug(f"  Area: {building.area}")
+            logging.debug(f"  Raw Height (DSM): {building.raw_height}")
+            logging.debug(f"  Base Height (DTM): {building.base_height}")
+            logging.debug(f"  Roof Type: {building.roof_type}")
+            logging.debug(f"  Roof Confidence: {building.roof_confidence}")
+            logging.debug(f"  Roof Color: {building.roof_color}")
+            logging.debug("-" * 50)
 
     def _get_footprint(self, bid):
         """Extract the footprint (polygon) of the building with ID `bid`."""
@@ -123,13 +124,13 @@ class BuildingManager:
         """Calculate the base height of the building from the DTM."""
         # Check if the region is valid
         if np.count_nonzero(region) == 0:
-            print(f"Warning: Empty region for building. Setting base height to 0.")
+            logging.warning(f"Empty region for building. Setting base height to 0.")
             return 0.0
 
 
         # Calculate base height
         base_height = np.mean(z[region]) 
-        print(f"Calculated Base Height: {base_height}")
+        logging.debug(f"Calculated Base Height: {base_height}")
         return base_height
 
     def _predict_roof_type(self,building_region):

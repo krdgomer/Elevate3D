@@ -1,6 +1,7 @@
 from elevate3d.utils.download_manager import DownloadManager
 import open3d as o3d
 import numpy as np
+import logging
 
 class TextureManager:
     def __init__(self):
@@ -12,7 +13,7 @@ class TextureManager:
             texture_path = self.download_manager.download_file(texture_name)
             return o3d.io.read_image(texture_path)
         except Exception as e:
-            print(f"Failed to load texture {texture_name}: {e}")
+            logging.error(f"Failed to load texture {texture_name}: {e}")
             return self._create_fallback_texture()
     
     def create_fallback_texture(self):

@@ -4,6 +4,7 @@ from matplotlib.path import Path as GeoPath
 from PIL import Image
 import open3d as o3d
 from elevate3d.core.mesh.building import Building
+import logging
 
 class BuildingMeshGenerator:
     def __init__(self, rgb, dsm, dtm, mask, wall_texture, roof_texture):
@@ -17,7 +18,7 @@ class BuildingMeshGenerator:
     def generate_building(self, building: Building, image_width, image_height):
         """Generate a 3D mesh for a single building."""
         if building.area < 10:
-            print(f"Building {building.id} too small, skipping.")
+            logging.debug(f"Building {building.id} too small, skipping.")
             return None
 
         roof_type_methods = {
@@ -62,7 +63,7 @@ class BuildingMeshGenerator:
 
     def create_flat_roof_building(self, footprint, base_height, building_height, h, w):
         """Create building with flat roof."""
-        print("Creating flat roof building")
+        logging.debug("Creating flat roof building")
         
         n_verts = len(footprint)
         bottom = np.column_stack((footprint, np.full(n_verts, base_height)))
@@ -98,7 +99,7 @@ class BuildingMeshGenerator:
 
     def create_gabled_roof_building(self, footprint, base_height, building_height, h, w):
         """Create building with gabled roof."""
-        print("Creating gabled roof building")
+        logging.debug("Creating gabled roof building")
 
         n_verts = len(footprint)
 
@@ -166,7 +167,7 @@ class BuildingMeshGenerator:
 
     def create_hip_roof_building(self, footprint, base_height, building_height, h, w):
         """Create building with hip roof (pyramid-like)."""
-        print("Creating hip roof building")
+        logging.debug("Creating hip roof building")
 
         n_verts = len(footprint)
         centroid = np.mean(footprint, axis=0)
@@ -207,7 +208,7 @@ class BuildingMeshGenerator:
         building_meshes = []
         h, w = self.dsm.shape
 
-        print("Generating building meshes on a flat plane.")
+        logging.info("Generating building meshes on a flat plane.")
 
         for building in buildings:
             mesh = self.generate_building(building, w, h)

@@ -2,34 +2,41 @@ from flask import Flask, request, jsonify, send_from_directory
 import os
 import uuid
 import sys
+import logging
 from werkzeug.utils import secure_filename
 from pathlib import Path
 from elevate3d.run_pipeline import Pipeline
 import platform
+from elevate3d.config import ALLOWED_EXTENSIONS, MAX_CONTENT_LENGTH, MODEL_DIR, DATA_DIR, UPLOAD_DIR
+from PIL import Image
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 
 def create_app():
     app = Flask(__name__)
 
     # Configuration
-    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
-    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB limit
+    app.config['ALLOWED_EXTENSIONS'] = ALLOWED_EXTENSIONS
+    app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
-    # Get platform-specific data directories
+    # Get local data directory within project
     def get_data_dir():
-        """Returns platform-appropriate data directory"""
-        home = Path.home()
-        
-        if platform.system() == "Windows":
-            return home / "AppData" / "Local" / "Elevate3D"
-        elif platform.system() == "Darwin":  # Mac
-            return home / "Library" / "Application Support" / "Elevate3D"
-        else:  # Linux/Unix
-            return home / ".local" / "share" / "elevate3d"
+        """Returns local data directory within the project root"""
+        # Get the project root (parent of elevate3d package)
+        project_root = Path(__file__).parent.parent
+        return project_root / "data"
 
     # Set up file storage paths
     data_dir = get_data_dir()
-    app.config['UPLOAD_FOLDER'] = str(data_dir / 'uploads')
-    app.config['MODEL_FOLDER'] = str(data_dir / 'models')
+    app.config['UPLOAD_FOLDER'] = str(data_dir / UPLOAD_DIR)
+    app.config['MODEL_FOLDER'] = str(data_dir / MODEL_DIR)
     
     # Ensure directories exist
     Path(app.config['UPLOAD_FOLDER']).mkdir(parents=True, exist_ok=True)
@@ -37,7 +44,7 @@ def create_app():
 
     def allowed_file(filename):
         return '.' in filename and \
-               filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+               filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
     @app.route('/')
     def index():
@@ -59,6 +66,15 @@ def create_app():
         
         if file and allowed_file(file.filename):
             try:
+                # Validate image content
+                try:
+                    img = Image.open(file)
+                    img.verify()  # Check if it's a valid image
+                    file.seek(0)  # Reset file pointer
+                except Exception as e:
+                    logging.error(f"Invalid image file: {e}")
+                    return jsonify({'error': 'Invalid image file'}), 400
+
                 # Save uploaded file
                 filename = secure_filename(file.filename)
                 upload_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
